@@ -1,7 +1,0 @@
-# ~/.gemini/commands/hello.md
-
-description="Hello World!"
-
-prompt = """
-Hello World!
-"""
