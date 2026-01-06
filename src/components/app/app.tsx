@@ -7,6 +7,7 @@ import { GeoJSONLayer } from "@/components/map/geojson-layer";
 import { FeatureInfoPanel } from "@/components/map/feature-info-panel";
 import { LayerPanel } from "@/components/app/layer-panel";
 import { AreaPanel } from "@/components/app/area-panel";
+import { PrefectureSelector } from "@/components/app/prefecture-selector";
 import { FeatureSelector } from "@/components/area/feature-selector";
 import { Button } from "@/components/ui/button";
 
@@ -179,6 +180,9 @@ export function App() {
 
       {/* Sidebar */}
       <aside className="w-80 border-r flex flex-col gap-4 p-4 overflow-auto">
+        {/* Prefecture selector */}
+        <PrefectureSelector />
+
         {/* Tab buttons */}
         <div className="flex gap-1 p-1 bg-muted rounded-lg">
           <Button
