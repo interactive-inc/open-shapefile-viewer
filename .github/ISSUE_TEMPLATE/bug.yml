@@ -1,0 +1,64 @@
+name: バグ報告
+description: バグの報告・修正
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        バグ報告のIssueです。再現手順を詳しく記載してください。
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 概要
+      description: 発生しているバグを簡潔に説明
+      placeholder: "例: フォーム送信時にエラーが表示される"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: バグを再現する手順
+      placeholder: |
+        1. トップページを開く
+        2. フォームに入力する
+        3. 送信ボタンをクリックする
+        4. エラーが表示される
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する動作
+      description: 本来どのように動作すべきか
+      placeholder: "例: フォームが正常に送信され、完了メッセージが表示される"
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の動作
+      description: 現在どのように動作しているか
+      placeholder: "例: 「送信に失敗しました」というエラーが表示される"
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 環境
+      description: ブラウザ、OS、デバイスなど
+      placeholder: |
+        - デバイス: MacBook Pro
+        - OS: macOS 14
+        - ブラウザ: Chrome 120
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 影響範囲
+      multiple: true
+      options:
+        - frontend
+        - backend
+        - packages/types
