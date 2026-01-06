@@ -3,8 +3,9 @@ import {
   TileLayer,
   useMap,
 } from "react-leaflet";
-import type { ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import L from "leaflet";
+import { MapPin } from "lucide-react";
 
 interface MapViewProps {
   children?: ReactNode;
@@ -13,6 +14,9 @@ interface MapViewProps {
 // 日本全体の中心座標
 const JAPAN_CENTER: [number, number] = [36.5, 138.0];
 const DEFAULT_ZOOM = 5;
+
+// localStorage キー
+const PREFECTURE_STORAGE_KEY = "shapefile-viewer-prefecture";
 
 // Canvas レンダラーを使用 (大量のフィーチャーに最適)
 const canvasRenderer = L.canvas({ tolerance: 5 });
@@ -73,9 +77,31 @@ const PREFECTURES: { name: string; lat: number; lng: number; zoom: number }[] = 
  */
 function PrefectureSelector() {
   const map = useMap();
+  const [selectedPrefecture, setSelectedPrefecture] = useState<string>("");
+
+  // 初回マウント時にlocalStorageから復元し、地図の位置を設定
+  useEffect(() => {
+    const saved = localStorage.getItem(PREFECTURE_STORAGE_KEY);
+    if (saved) {
+      setSelectedPrefecture(saved);
+      const pref = PREFECTURES.find((p) => p.name === saved);
+      if (pref) {
+        map.setView([pref.lat, pref.lng], pref.zoom);
+      }
+    }
+  }, [map]);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const prefName = e.target.value;
+    setSelectedPrefecture(prefName);
+
+    // localStorageに保存
+    if (prefName) {
+      localStorage.setItem(PREFECTURE_STORAGE_KEY, prefName);
+    } else {
+      localStorage.removeItem(PREFECTURE_STORAGE_KEY);
+    }
+
     if (!prefName) {
       // 日本全体に戻る
       map.setView(JAPAN_CENTER, DEFAULT_ZOOM);
@@ -90,18 +116,21 @@ function PrefectureSelector() {
 
   return (
     <div className="absolute top-4 right-4 z-[1000]">
-      <select
-        onChange={handleChange}
-        defaultValue=""
-        className="px-3 py-2 text-sm border rounded-lg shadow-md bg-white cursor-pointer"
-      >
-        <option value="">日本全体</option>
-        {PREFECTURES.map((pref) => (
-          <option key={pref.name} value={pref.name}>
-            {pref.name}
-          </option>
-        ))}
-      </select>
+      <div className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg shadow-md">
+        <MapPin className="w-4 h-4 text-muted-foreground" />
+        <select
+          value={selectedPrefecture}
+          onChange={handleChange}
+          className="text-sm bg-transparent cursor-pointer focus:outline-none"
+        >
+          <option value="">日本全体</option>
+          {PREFECTURES.map((pref) => (
+            <option key={pref.name} value={pref.name}>
+              {pref.name}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }
