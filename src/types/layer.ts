@@ -53,3 +53,42 @@ export function parseFeatureId(featureId: string): { layerId: string; index: num
   if (Number.isNaN(index)) return null;
   return { layerId: parts[0], index };
 }
+
+/**
+ * フィーチャーのプロパティから名称を生成
+ * 都道府県名 + 市区町村名 + 町大字名 + 丁目字名 を結合
+ */
+export function generateFeatureName(properties: Record<string, unknown> | null): string {
+  if (!properties) return "";
+
+  const parts: string[] = [];
+  const keys = ["都道府県名", "市区町村名", "町大字名", "丁目字名"];
+
+  for (const key of keys) {
+    const value = properties[key];
+    if (value !== null && value !== undefined && value !== "") {
+      parts.push(String(value));
+    }
+  }
+
+  return parts.join("");
+}
+
+/**
+ * レイヤー配列からフィーチャーIDに対応する名称を取得
+ */
+export function getFeatureNameFromLayers(
+  featureId: string,
+  layers: Layer[]
+): string {
+  const parsed = parseFeatureId(featureId);
+  if (!parsed) return "";
+
+  const layer = layers.find((l) => l.id === parsed.layerId);
+  if (!layer) return "";
+
+  const feature = layer.geojson.features[parsed.index];
+  if (!feature) return "";
+
+  return generateFeatureName(feature.properties as Record<string, unknown> | null);
+}

@@ -6,6 +6,8 @@ import {
   createEmptyProject,
   generateAreaId,
 } from "@/types/area";
+import type { Layer } from "@/types/layer";
+import { getFeatureNameFromLayers } from "@/types/layer";
 
 const PROJECT_STORAGE_KEY = "shapefile-viewer-project";
 
@@ -27,7 +29,7 @@ interface UseAreasResult {
   // Project operations
   newProject: (name: string) => void;
   openProjectFromFile: (file: File) => Promise<void>;
-  downloadProject: () => void;
+  downloadProject: (layers: Layer[]) => void;
   closeProject: () => void;
 
   // Area operations
@@ -150,18 +152,37 @@ export function useAreas(): UseAreasResult {
   }, []);
 
   // Download project as JSON file
-  const downloadProject = useCallback(() => {
-    if (!project) return;
+  const downloadProject = useCallback(
+    (layers: Layer[]) => {
+      if (!project) return;
 
-    const updatedProject = {
-      ...project,
-      updatedAt: new Date().toISOString(),
-    };
+      // 各エリアのフィーチャー名を生成
+      const areasWithNames = project.areas.map((area) => {
+        const featureNames: Record<string, string> = {};
+        for (const featureId of area.featureIds) {
+          const name = getFeatureNameFromLayers(featureId, layers);
+          if (name) {
+            featureNames[featureId] = name;
+          }
+        }
+        return {
+          ...area,
+          featureNames: Object.keys(featureNames).length > 0 ? featureNames : undefined,
+        };
+      });
 
-    setProject(updatedProject);
-    setIsDirty(false);
-    downloadProjectAsFile(updatedProject);
-  }, [project]);
+      const updatedProject: AreaProject = {
+        ...project,
+        areas: areasWithNames,
+        updatedAt: new Date().toISOString(),
+      };
+
+      setProject(updatedProject);
+      setIsDirty(false);
+      downloadProjectAsFile(updatedProject);
+    },
+    [project]
+  );
 
   // Close project
   const closeProject = useCallback(() => {

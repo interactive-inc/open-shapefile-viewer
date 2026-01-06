@@ -227,7 +227,7 @@ export function App() {
               isLoading={isAreasLoading}
               onNewProject={newProject}
               onOpenProject={handleOpenProject}
-              onDownloadProject={downloadProject}
+              onDownloadProject={() => downloadProject(layers)}
               onCloseProject={closeProject}
               onAddArea={addArea}
               onRemoveArea={removeArea}

@@ -7,6 +7,7 @@ export interface Area {
   parentId: string | null; // null = ルートエリア
   color: string;
   featureIds: string[]; // 所属するフィーチャーのID
+  featureNames?: Record<string, string>; // featureId -> 名称 (エクスポート時に生成)
 }
 
 /**
