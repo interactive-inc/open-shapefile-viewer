@@ -47,7 +47,7 @@ export function FeatureInfoPanel({ feature }: FeatureInfoPanelProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="max-h-[400px] overflow-auto">
+        <div>
           <table className="w-full text-sm">
             <tbody>
               {Object.entries(properties).map(([key, value]) => (

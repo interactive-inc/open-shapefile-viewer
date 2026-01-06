@@ -65,7 +65,7 @@ export function LayerPanel({
           </Button>
         )}
 
-        <div className="space-y-2 max-h-[400px] overflow-auto">
+        <div className="space-y-2">
           {layers.map((layer, index) => (
             <div key={layer.id} className="space-y-2">
               <div className="flex items-center gap-2 p-2 border rounded-md bg-background">

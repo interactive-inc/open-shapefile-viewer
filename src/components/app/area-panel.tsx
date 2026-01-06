@@ -178,7 +178,7 @@ export function AreaPanel({
             </Button>
 
             {/* Area tree */}
-            <div className="max-h-[250px] overflow-auto border rounded-md p-1">
+            <div className="border rounded-md p-1">
               <AreaTreeView
                 areas={areaTree}
                 selectedAreaId={selectedAreaId}
