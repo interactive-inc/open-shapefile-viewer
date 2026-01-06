@@ -1,7 +1,0 @@
-{
-  "schema": "",
-  "files.exclude": {
-    "**/.kiro": true,
-    "**/.cursor": true
-  }
-}
