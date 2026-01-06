@@ -1,10 +1,10 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type { Area, AreaProject, AreaWithChildren } from "@/types/area";
 import {
-  AREA_COLORS,
   buildAreaTree,
   createEmptyProject,
   generateAreaId,
+  getNextAvailableColor,
 } from "@/types/area";
 import type { Layer } from "@/types/layer";
 import { getFeatureNameFromLayers } from "@/types/layer";
@@ -197,11 +197,16 @@ export function useAreas(): UseAreasResult {
     (name: string, parentId: string | null = null) => {
       if (!project) return;
 
+      // 既存エリアの色を取得
+      const usedColors = project.areas.map((a) => a.color);
+      // 使用済み色から最も離れた色を選択
+      const newColor = getNextAvailableColor(usedColors);
+
       const newArea: Area = {
         id: generateAreaId(),
         name,
         parentId,
-        color: AREA_COLORS[project.areas.length % AREA_COLORS.length],
+        color: newColor,
         featureIds: [],
       };
 

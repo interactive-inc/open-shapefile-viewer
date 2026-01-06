@@ -26,14 +26,8 @@ export interface SavedLayerState {
   filter?: PropertyFilter;
 }
 
-export const LAYER_COLORS = [
-  "#3b82f6", // blue
-  "#22c55e", // green
-  "#f59e0b", // amber
-  "#ef4444", // red
-  "#8b5cf6", // violet
-  "#06b6d4", // cyan
-];
+// 後方互換性のため維持 (新規はcolor-palette.tsを使用)
+export { POLYGON_PALETTE as LAYER_COLORS } from "@/lib/color-palette";
 
 /**
  * フィーチャーIDを生成

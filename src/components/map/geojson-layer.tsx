@@ -3,6 +3,7 @@ import type { Feature, FeatureCollection } from "geojson";
 import type { Layer, PathOptions } from "leaflet";
 import { useEffect, useRef, useMemo, useCallback } from "react";
 import { generateFeatureId, type PropertyFilter } from "@/types/layer";
+import { UI_COLORS } from "@/lib/color-palette";
 
 // 最新のコールバックを参照するためのRef型
 type FeatureClickHandler = (feature: Feature, featureId: string, index: number) => void;
@@ -120,15 +121,16 @@ export function GeoJSONLayer({
     (featureIndex: number, isSelected: boolean, isHover: boolean): PathOptions => {
       // エリア色があればそれを使用
       const areaColor = getAreaColorForIndex(featureIndex);
-      const baseColor = areaColor ?? color;
+      // エリア機能が有効 (areaColorMapが存在) で未割当の場合はグレー
+      const baseColor = areaColor ?? (areaColorMap ? UI_COLORS.unassigned : color);
       const isAssigned = areaColor !== null;
 
       if (isSelected && showSelectionHighlight) {
         return {
-          color: "#fbbf24", // amber - 選択状態は黄色系
+          color: UI_COLORS.selected,
           weight: 4,
           fillOpacity: 0.6,
-          fillColor: "#fbbf24",
+          fillColor: UI_COLORS.selected,
         };
       }
 
@@ -140,28 +142,28 @@ export function GeoJSONLayer({
         if (belongsToSelectedArea) {
           // 選択中エリアに属する: 赤系で「削除可能」を表示
           return {
-            color: "#ef4444",
+            color: UI_COLORS.hoverRemove,
             weight: 3,
             fillOpacity: 0.5,
-            fillColor: "#ef4444",
+            fillColor: UI_COLORS.hoverRemove,
           };
         }
         if (isAssigned) {
           // 他のエリアに割り当て済み: 薄いグレーで「変更不可」を表示
           return {
-            color: "#9ca3af",
+            color: UI_COLORS.hoverDisabled,
             weight: 2,
             fillOpacity: 0.3,
-            fillColor: "#9ca3af",
+            fillColor: UI_COLORS.hoverDisabled,
             dashArray: "4, 4",
           };
         }
         // 未割り当て: 緑色で「追加可能」を表示
         return {
-          color: "#22c55e",
+          color: UI_COLORS.hoverAdd,
           weight: 3,
           fillOpacity: 0.5,
-          fillColor: "#22c55e",
+          fillColor: UI_COLORS.hoverAdd,
         };
       }
 
@@ -181,7 +183,7 @@ export function GeoJSONLayer({
         fillColor: baseColor,
       };
     },
-    [color, getAreaColorForIndex, areaSelectionMode, showSelectionHighlight, layerId, selectedAreaFeatureIds]
+    [color, getAreaColorForIndex, areaColorMap, areaSelectionMode, showSelectionHighlight, layerId, selectedAreaFeatureIds]
   );
 
   // 最新のスタイル関数をrefに保存 (ホバー時のクロージャ問題を回避)

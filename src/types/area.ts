@@ -28,19 +28,10 @@ export interface AreaProject {
   areas: Area[];
 }
 
-/**
- * デフォルトのエリアカラー
- */
-export const AREA_COLORS = [
-  "#ef4444", // red
-  "#f97316", // orange
-  "#eab308", // yellow
-  "#22c55e", // green
-  "#14b8a6", // teal
-  "#3b82f6", // blue
-  "#8b5cf6", // violet
-  "#ec4899", // pink
-];
+// 後方互換性のため維持 (新規はcolor-palette.tsを使用)
+export { POLYGON_PALETTE as AREA_COLORS } from "@/lib/color-palette";
+// 新しい色取得関数
+export { getNextAvailableColor } from "@/lib/color-palette";
 
 /**
  * 空のプロジェクトを作成

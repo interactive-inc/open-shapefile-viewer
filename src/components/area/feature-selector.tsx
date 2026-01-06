@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import type { Feature, Geometry, GeoJsonProperties } from "geojson";
 import type { Layer } from "@/types/layer";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,11 +9,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PropertyMultiSelect } from "@/components/ui/property-multi-select";
+import { filterFeaturesByProperty } from "@/lib/property-filter-utils";
 
 interface FeatureSelectorProps {
   layers: Layer[];
   selectedAreaId: string | null;
+  assignedFeatureIds: Set<string>;
   onAddFeatures: (featureIds: string[]) => void;
+  getFilteredFeatures: (
+    layer: Layer
+  ) => Feature<Geometry | null, GeoJsonProperties>[];
 }
 
 /**
@@ -25,62 +32,70 @@ function generateFeatureId(layerId: string, featureIndex: number): string {
 export function FeatureSelector({
   layers,
   selectedAreaId,
+  assignedFeatureIds,
   onAddFeatures,
+  getFilteredFeatures,
 }: FeatureSelectorProps) {
   const [selectedLayerId, setSelectedLayerId] = useState<string>("");
   const [selectedKey, setSelectedKey] = useState<string>("");
-  const [selectedValue, setSelectedValue] = useState<string>("");
+  const [selectedValues, setSelectedValues] = useState<Set<string>>(new Set());
 
-  // Get available property keys from selected layer
-  const availableKeys = useMemo(() => {
-    const layer = layers.find((l) => l.id === selectedLayerId);
-    if (!layer || layer.geojson.features.length === 0) return [];
+  const selectedLayer = useMemo(
+    () => layers.find((l) => l.id === selectedLayerId),
+    [layers, selectedLayerId]
+  );
 
-    const keysSet = new Set<string>();
-    for (const feature of layer.geojson.features) {
-      if (feature.properties) {
-        for (const key of Object.keys(feature.properties)) {
-          keysSet.add(key);
-        }
-      }
-    }
-    return Array.from(keysSet).sort();
-  }, [layers, selectedLayerId]);
+  // フィルター適用済みフィーチャーを取得
+  const filteredFeatures = useMemo(
+    () => (selectedLayer ? getFilteredFeatures(selectedLayer) : []),
+    [selectedLayer, getFilteredFeatures]
+  );
 
-  // Get unique values for selected key
-  const availableValues = useMemo(() => {
-    const layer = layers.find((l) => l.id === selectedLayerId);
-    if (!layer || !selectedKey) return [];
+  // 元のfeaturesはID生成用に保持
+  const allFeatures = useMemo(
+    () => selectedLayer?.geojson.features ?? [],
+    [selectedLayer]
+  );
 
-    const valuesSet = new Set<string>();
-    for (const feature of layer.geojson.features) {
-      if (feature.properties && selectedKey in feature.properties) {
-        const value = feature.properties[selectedKey];
-        if (value !== null && value !== undefined) {
-          valuesSet.add(String(value));
-        }
-      }
-    }
-    return Array.from(valuesSet).sort();
-  }, [layers, selectedLayerId, selectedKey]);
+  // 割り当て済みを除外したフィーチャー (選択肢表示用)
+  const unassignedFeatures = useMemo(() => {
+    if (!selectedLayer) return [];
+    return filteredFeatures.filter((feature) => {
+      const index = allFeatures.findIndex((f) => f === feature);
+      const featureId = generateFeatureId(selectedLayer.id, index);
+      return !assignedFeatureIds.has(featureId);
+    });
+  }, [selectedLayer, filteredFeatures, allFeatures, assignedFeatureIds]);
 
-  // Get matching features
+  // フィルター適用状態
+  const isFilterApplied = selectedLayer?.filter?.enabled ?? false;
+  const totalCount = allFeatures.length;
+  const filteredCount = filteredFeatures.length;
+  const unassignedCount = unassignedFeatures.length;
+
+  // Get matching features (already excludes assigned ones via unassignedFeatures)
   const matchingFeatures = useMemo(() => {
-    const layer = layers.find((l) => l.id === selectedLayerId);
-    if (!layer || !selectedKey || !selectedValue) return [];
+    if (!selectedLayer || !selectedKey || selectedValues.size === 0) {
+      return [];
+    }
 
-    return layer.geojson.features
-      .map((feature, index) => ({
+    // 未割り当てフィーチャーから属性で絞り込み
+    const matchedFeatures = filterFeaturesByProperty(
+      unassignedFeatures,
+      selectedKey,
+      Array.from(selectedValues)
+    );
+
+    // 元のfeatures配列でのインデックスを取得してID生成
+    return matchedFeatures.map((feature) => {
+      const index = allFeatures.findIndex((f) => f === feature);
+      return {
         feature,
-        id: generateFeatureId(layer.id, index),
+        id: generateFeatureId(selectedLayer.id, index),
         index,
-      }))
-      .filter(({ feature }) => {
-        if (!feature.properties) return false;
-        const value = feature.properties[selectedKey];
-        return String(value) === selectedValue;
-      });
-  }, [layers, selectedLayerId, selectedKey, selectedValue]);
+      };
+    });
+  }, [selectedLayer, unassignedFeatures, allFeatures, selectedKey, selectedValues]);
 
   const handleAddAll = () => {
     if (matchingFeatures.length > 0) {
@@ -91,12 +106,15 @@ export function FeatureSelector({
   const handleLayerChange = (layerId: string) => {
     setSelectedLayerId(layerId);
     setSelectedKey("");
-    setSelectedValue("");
+    setSelectedValues(new Set());
   };
 
   const handleKeyChange = (key: string) => {
     setSelectedKey(key);
-    setSelectedValue("");
+  };
+
+  const handleValuesChange = (values: Set<string>) => {
+    setSelectedValues(values);
   };
 
   if (!selectedAreaId) {
@@ -104,9 +122,7 @@ export function FeatureSelector({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">属性フィルタ</CardTitle>
-          <CardDescription>
-            エリアを選択してください
-          </CardDescription>
+          <CardDescription>エリアを選択してください</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -116,9 +132,7 @@ export function FeatureSelector({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm">属性フィルタ</CardTitle>
-        <CardDescription>
-          属性値でフィーチャーを一括選択
-        </CardDescription>
+        <CardDescription>属性値でフィーチャーを一括選択</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Layer selector */}
@@ -130,57 +144,49 @@ export function FeatureSelector({
             className="w-full text-sm px-2 py-1 border rounded"
           >
             <option value="">選択してください</option>
-            {layers.map((layer) => (
-              <option key={layer.id} value={layer.id}>
-                {layer.name}
-              </option>
-            ))}
+            {layers.map((layer) => {
+              const layerFilterActive = layer.filter?.enabled ?? false;
+              const layerFiltered = layerFilterActive
+                ? getFilteredFeatures(layer).length
+                : layer.geojson.features.length;
+              const layerTotal = layer.geojson.features.length;
+              return (
+                <option key={layer.id} value={layer.id}>
+                  {layer.name}
+                  {layerFilterActive && ` (${layerFiltered}/${layerTotal}件)`}
+                </option>
+              );
+            })}
           </select>
+          {isFilterApplied && (
+            <p className="text-xs text-muted-foreground mt-1">
+              フィルター適用中: {filteredCount}/{totalCount} 件
+            </p>
+          )}
         </div>
 
-        {/* Property key selector */}
+        {/* Property multi-select */}
         {selectedLayerId && (
-          <div>
-            <label className="text-xs text-muted-foreground">属性キー</label>
-            <select
-              value={selectedKey}
-              onChange={(e) => handleKeyChange(e.target.value)}
-              className="w-full text-sm px-2 py-1 border rounded"
-            >
-              <option value="">選択してください</option>
-              {availableKeys.map((key) => (
-                <option key={key} value={key}>
-                  {key}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Property value selector */}
-        {selectedKey && (
-          <div>
-            <label className="text-xs text-muted-foreground">属性値</label>
-            <select
-              value={selectedValue}
-              onChange={(e) => setSelectedValue(e.target.value)}
-              className="w-full text-sm px-2 py-1 border rounded"
-            >
-              <option value="">選択してください</option>
-              {availableValues.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </div>
+          <PropertyMultiSelect
+            features={unassignedFeatures}
+            selectedKey={selectedKey}
+            selectedValues={selectedValues}
+            onKeyChange={handleKeyChange}
+            onValuesChange={handleValuesChange}
+            keyLabel="属性キー"
+          />
         )}
 
         {/* Results */}
-        {selectedValue && (
+        {selectedValues.size > 0 && (
           <div className="space-y-2">
             <p className="text-sm">
-              {matchingFeatures.length} 件のフィーチャーがマッチ
+              {matchingFeatures.length} 件マッチ
+              {unassignedCount > 0 && unassignedCount < filteredCount && (
+                <span className="text-muted-foreground">
+                  {" "}(未割当のみ表示)
+                </span>
+              )}
             </p>
             <Button
               size="sm"
@@ -188,7 +194,7 @@ export function FeatureSelector({
               disabled={matchingFeatures.length === 0}
               className="w-full"
             >
-              すべて追加
+              {matchingFeatures.length > 0 ? `${matchingFeatures.length} 件を追加` : "追加可能なフィーチャーなし"}
             </Button>
           </div>
         )}

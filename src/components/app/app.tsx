@@ -72,6 +72,20 @@ export function App() {
     return new Set(area.featureIds);
   }, [selectedAreaId, getAreaById, project]);
 
+  // レイヤーフィルター適用済みフィーチャーを取得
+  const getFilteredFeatures = useCallback(
+    (layer: (typeof layers)[number]) => {
+      if (!layer.filter?.enabled) return layer.geojson.features;
+      const { key, values } = layer.filter;
+      return layer.geojson.features.filter((f) => {
+        const value = f.properties?.[key];
+        if (value === null || value === undefined) return false;
+        return values.includes(String(value));
+      });
+    },
+    []
+  );
+
   // Shapefile file input handler
   const handleShapefileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -242,7 +256,9 @@ export function App() {
             <FeatureSelector
               layers={layers}
               selectedAreaId={selectedAreaId}
+              assignedFeatureIds={new Set(areaColorMap.keys())}
               onAddFeatures={handleAddFeatures}
+              getFilteredFeatures={getFilteredFeatures}
             />
           </>
         )}
