@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import type { Feature } from "geojson";
 import type { Layer } from "@/types/layer";
 import { Button } from "@/components/ui/button";
 import {

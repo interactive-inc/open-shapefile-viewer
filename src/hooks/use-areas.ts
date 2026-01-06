@@ -7,10 +7,12 @@ import {
   generateAreaId,
 } from "@/types/area";
 
+const PROJECT_STORAGE_KEY = "shapefile-viewer-project";
+
 interface UseAreasResult {
   // Project state
   project: AreaProject | null;
-  projectPath: string | null;
+  projectName: string | null;
   isDirty: boolean;
 
   // Areas
@@ -23,10 +25,10 @@ interface UseAreasResult {
   error: string | null;
 
   // Project operations
-  newProject: () => Promise<void>;
-  openProject: () => Promise<void>;
-  saveProject: () => Promise<void>;
-  saveProjectAs: () => Promise<void>;
+  newProject: (name: string) => void;
+  openProjectFromFile: (file: File) => Promise<void>;
+  downloadProject: () => void;
+  closeProject: () => void;
 
   // Area operations
   addArea: (name: string, parentId?: string | null) => void;
@@ -42,58 +44,68 @@ interface UseAreasResult {
   // Utils
   getAreaById: (id: string) => Area | undefined;
   getAreaColor: (featureId: string) => string | null;
-  areaColorMap: Map<string, string>; // featureId -> color マップ
+  areaColorMap: Map<string, string>;
+}
+
+/**
+ * プロジェクトをJSONファイルとしてダウンロード
+ */
+function downloadProjectAsFile(project: AreaProject) {
+  const json = JSON.stringify(project, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${project.name}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export function useAreas(): UseAreasResult {
   const [project, setProject] = useState<AreaProject | null>(null);
-  const [projectPath, setProjectPath] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isInitialized = useRef(false);
-  const isRestoring = useRef(false);
 
-  // 起動時に保存されたプロジェクトパスを復元
+  // 起動時にlocalStorageからプロジェクトを復元
   useEffect(() => {
     if (isInitialized.current) return;
     isInitialized.current = true;
 
-    const restoreProject = async () => {
-      try {
-        const savedPath = await window.electronAPI.loadProjectPath();
-        if (!savedPath) return;
-
-        console.log(`[Areas] Restoring project from: ${savedPath}`);
-        isRestoring.current = true;
-        setIsLoading(true);
-
-        const loadedProject = await window.electronAPI.loadProject(savedPath);
+    try {
+      const saved = localStorage.getItem(PROJECT_STORAGE_KEY);
+      if (saved) {
+        const loadedProject = JSON.parse(saved) as AreaProject;
         setProject(loadedProject);
-        setProjectPath(savedPath);
-        setIsDirty(false);
-        console.log(`[Areas] Restored project: ${loadedProject.name}`);
-      } catch (e) {
-        console.error("[Areas] Failed to restore project:", e);
-        // ファイルが見つからない場合は保存パスをクリア
-        await window.electronAPI.clearProjectPath();
-      } finally {
-        setIsLoading(false);
-        isRestoring.current = false;
+        console.log(`[Project] Restored from localStorage: ${loadedProject.name}`);
       }
-    };
-
-    restoreProject();
+    } catch (e) {
+      console.error("[Project] Failed to restore from localStorage:", e);
+    }
   }, []);
 
-  // プロジェクトパス変更時に自動保存 (復元中は除く)
+  // プロジェクト変更時にlocalStorageに自動保存
   useEffect(() => {
-    if (isRestoring.current) return;
     if (!isInitialized.current) return;
 
-    window.electronAPI.saveProjectPath(projectPath);
-  }, [projectPath]);
+    if (project) {
+      try {
+        localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(project));
+      } catch (e) {
+        console.error("[Project] Failed to save to localStorage:", e);
+      }
+    } else {
+      try {
+        localStorage.removeItem(PROJECT_STORAGE_KEY);
+      } catch (e) {
+        console.error("[Project] Failed to clear localStorage:", e);
+      }
+    }
+  }, [project]);
 
   // Compute area tree from flat areas
   const areaTree = useMemo(() => {
@@ -102,53 +114,32 @@ export function useAreas(): UseAreasResult {
   }, [project]);
 
   // Create new project
-  const newProject = useCallback(async () => {
-    setIsLoading(true);
+  const newProject = useCallback((name: string) => {
+    const newProj = createEmptyProject(name);
+    setProject(newProj);
+    setIsDirty(false);
+    setSelectedAreaId(null);
     setError(null);
-
-    try {
-      const filePath = await window.electronAPI.newProjectDialog();
-      if (!filePath) {
-        setIsLoading(false);
-        return;
-      }
-
-      const fileName = filePath.split("/").pop()?.replace(".json", "") || "新規プロジェクト";
-      const newProj = createEmptyProject(fileName);
-
-      await window.electronAPI.saveProject(filePath, newProj);
-
-      setProject(newProj);
-      setProjectPath(filePath);
-      setIsDirty(false);
-      setSelectedAreaId(null);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Unknown error";
-      setError(message);
-      console.error("Failed to create project:", e);
-    } finally {
-      setIsLoading(false);
-    }
   }, []);
 
-  // Open existing project
-  const openProject = useCallback(async () => {
+  // Open project from file
+  const openProjectFromFile = useCallback(async (file: File) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const filePath = await window.electronAPI.openProjectDialog();
-      if (!filePath) {
-        setIsLoading(false);
-        return;
+      const text = await file.text();
+      const loadedProject = JSON.parse(text) as AreaProject;
+
+      // バリデーション
+      if (!loadedProject.name || !loadedProject.areas) {
+        throw new Error("無効なプロジェクトファイルです");
       }
 
-      const loadedProject = await window.electronAPI.loadProject(filePath);
-
       setProject(loadedProject);
-      setProjectPath(filePath);
       setIsDirty(false);
       setSelectedAreaId(null);
+      console.log(`[Project] Loaded: ${loadedProject.name}`);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
       setError(message);
@@ -158,64 +149,27 @@ export function useAreas(): UseAreasResult {
     }
   }, []);
 
-  // Save project
-  const saveProject = useCallback(async () => {
-    if (!project || !projectPath) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const updatedProject = {
-        ...project,
-        updatedAt: new Date().toISOString(),
-      };
-
-      await window.electronAPI.saveProject(projectPath, updatedProject);
-
-      setProject(updatedProject);
-      setIsDirty(false);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Unknown error";
-      setError(message);
-      console.error("Failed to save project:", e);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [project, projectPath]);
-
-  // Save project as new file
-  const saveProjectAs = useCallback(async () => {
+  // Download project as JSON file
+  const downloadProject = useCallback(() => {
     if (!project) return;
 
-    setIsLoading(true);
-    setError(null);
+    const updatedProject = {
+      ...project,
+      updatedAt: new Date().toISOString(),
+    };
 
-    try {
-      const filePath = await window.electronAPI.newProjectDialog();
-      if (!filePath) {
-        setIsLoading(false);
-        return;
-      }
-
-      const updatedProject = {
-        ...project,
-        updatedAt: new Date().toISOString(),
-      };
-
-      await window.electronAPI.saveProject(filePath, updatedProject);
-
-      setProject(updatedProject);
-      setProjectPath(filePath);
-      setIsDirty(false);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Unknown error";
-      setError(message);
-      console.error("Failed to save project:", e);
-    } finally {
-      setIsLoading(false);
-    }
+    setProject(updatedProject);
+    setIsDirty(false);
+    downloadProjectAsFile(updatedProject);
   }, [project]);
+
+  // Close project
+  const closeProject = useCallback(() => {
+    setProject(null);
+    setIsDirty(false);
+    setSelectedAreaId(null);
+    setError(null);
+  }, []);
 
   // Add new area
   const addArea = useCallback(
@@ -247,7 +201,6 @@ export function useAreas(): UseAreasResult {
     setProject((prev) => {
       if (!prev) return prev;
 
-      // Collect all descendant IDs
       const idsToRemove = new Set<string>();
       const collectDescendants = (areaId: string) => {
         idsToRemove.add(areaId);
@@ -290,17 +243,16 @@ export function useAreas(): UseAreasResult {
     setSelectedAreaId(id);
   }, []);
 
-  // Add feature to area (重複チェック: 他のエリアにも割り当て済みなら追加しない)
+  // Add feature to area
   const addFeatureToArea = useCallback((areaId: string, featureId: string) => {
     setProject((prev) => {
       if (!prev) return prev;
 
-      // 既に他のエリアに割り当て済みかチェック
       const isAlreadyAssigned = prev.areas.some((a) =>
         a.featureIds.includes(featureId)
       );
       if (isAlreadyAssigned) {
-        return prev; // 変更なし
+        return prev;
       }
 
       return {
@@ -334,13 +286,12 @@ export function useAreas(): UseAreasResult {
     []
   );
 
-  // Add multiple features to area (重複チェック: 他のエリアにも割り当て済みなら追加しない)
+  // Add multiple features to area
   const addFeaturesToArea = useCallback(
     (areaId: string, featureIds: string[]) => {
       setProject((prev) => {
         if (!prev) return prev;
 
-        // 既に割り当て済みのフィーチャーIDを収集
         const assignedIds = new Set<string>();
         for (const area of prev.areas) {
           for (const fid of area.featureIds) {
@@ -348,10 +299,9 @@ export function useAreas(): UseAreasResult {
           }
         }
 
-        // 未割り当てのフィーチャーのみフィルタ
         const unassignedIds = featureIds.filter((id) => !assignedIds.has(id));
         if (unassignedIds.length === 0) {
-          return prev; // 変更なし
+          return prev;
         }
 
         return {
@@ -386,7 +336,7 @@ export function useAreas(): UseAreasResult {
     [project]
   );
 
-  // エリア色マップを生成 (featureId -> color)
+  // Area color map
   const areaColorMap = useMemo(() => {
     const map = new Map<string, string>();
     if (!project) return map;
@@ -400,7 +350,7 @@ export function useAreas(): UseAreasResult {
 
   return {
     project,
-    projectPath,
+    projectName: project?.name ?? null,
     isDirty,
     areas: project?.areas ?? [],
     areaTree,
@@ -409,9 +359,9 @@ export function useAreas(): UseAreasResult {
     error,
     areaColorMap,
     newProject,
-    openProject,
-    saveProject,
-    saveProjectAs,
+    openProjectFromFile,
+    downloadProject,
+    closeProject,
     addArea,
     removeArea,
     updateArea,

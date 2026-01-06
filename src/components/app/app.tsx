@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import type { Feature } from "geojson";
 import { useLayers } from "@/hooks/use-layers";
 import { useAreas } from "@/hooks/use-areas";
@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 
 type TabType = "layers" | "areas";
 
-// 選択されたフィーチャーの状態
 interface SelectedFeatureState {
   layerId: string;
   index: number;
@@ -24,7 +23,7 @@ export function App() {
     layers,
     isLoading: isLayersLoading,
     error: layersError,
-    addLayer,
+    addLayerFromFiles,
     removeLayer,
     toggleLayer,
     setLayerColor,
@@ -35,7 +34,7 @@ export function App() {
 
   const {
     project,
-    projectPath,
+    projectName,
     isDirty,
     areaTree,
     selectedAreaId,
@@ -43,8 +42,9 @@ export function App() {
     error: areasError,
     areaColorMap,
     newProject,
-    openProject,
-    saveProject,
+    openProjectFromFile,
+    downloadProject,
+    closeProject,
     addArea,
     removeArea,
     updateArea,
@@ -56,7 +56,12 @@ export function App() {
   } = useAreas();
 
   const [activeTab, setActiveTab] = useState<TabType>("layers");
-  const [selectedFeatureState, setSelectedFeatureState] = useState<SelectedFeatureState | null>(null);
+  const [selectedFeatureState, setSelectedFeatureState] =
+    useState<SelectedFeatureState | null>(null);
+
+  // File input refs
+  const shapefileInputRef = useRef<HTMLInputElement>(null);
+  const projectInputRef = useRef<HTMLInputElement>(null);
 
   // 選択中エリアに属するフィーチャーIDのSet
   const selectedAreaFeatureIds = useMemo(() => {
@@ -66,24 +71,63 @@ export function App() {
     return new Set(area.featureIds);
   }, [selectedAreaId, getAreaById, project]);
 
-  const handleFeatureClick = useCallback(
-    (layerId: string) => (feature: Feature, featureId: string, index: number) => {
-      setSelectedFeatureState({ layerId, index, feature });
+  // Shapefile file input handler
+  const handleShapefileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        await addLayerFromFiles(files);
+      }
+      // Reset input so same file can be selected again
+      e.target.value = "";
+    },
+    [addLayerFromFiles]
+  );
 
-      // エリア選択モードの場合
-      if (activeTab === "areas" && selectedAreaId) {
-        const selectedArea = getAreaById(selectedAreaId);
-        if (selectedArea) {
-          // 選択中エリアに既に含まれている場合は削除、そうでなければ追加
-          if (selectedArea.featureIds.includes(featureId)) {
-            removeFeatureFromArea(selectedAreaId, featureId);
-          } else {
-            addFeatureToArea(selectedAreaId, featureId);
+  // Project file input handler
+  const handleProjectFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        await openProjectFromFile(file);
+      }
+      e.target.value = "";
+    },
+    [openProjectFromFile]
+  );
+
+  // Trigger file inputs
+  const handleAddLayer = useCallback(() => {
+    shapefileInputRef.current?.click();
+  }, []);
+
+  const handleOpenProject = useCallback(() => {
+    projectInputRef.current?.click();
+  }, []);
+
+  const handleFeatureClick = useCallback(
+    (layerId: string) =>
+      (feature: Feature, featureId: string, index: number) => {
+        setSelectedFeatureState({ layerId, index, feature });
+
+        if (activeTab === "areas" && selectedAreaId) {
+          const selectedArea = getAreaById(selectedAreaId);
+          if (selectedArea) {
+            if (selectedArea.featureIds.includes(featureId)) {
+              removeFeatureFromArea(selectedAreaId, featureId);
+            } else {
+              addFeatureToArea(selectedAreaId, featureId);
+            }
           }
         }
-      }
-    },
-    [activeTab, selectedAreaId, addFeatureToArea, removeFeatureFromArea, getAreaById]
+      },
+    [
+      activeTab,
+      selectedAreaId,
+      addFeatureToArea,
+      removeFeatureFromArea,
+      getAreaById,
+    ]
   );
 
   const handleAddFeatures = useCallback(
@@ -113,10 +157,26 @@ export function App() {
   };
 
   const error = layersError || areasError;
-  const isLoading = isLayersLoading || isAreasLoading;
 
   return (
     <div className="flex h-screen">
+      {/* Hidden file inputs */}
+      <input
+        ref={shapefileInputRef}
+        type="file"
+        accept=".shp,.dbf,.shx"
+        multiple
+        onChange={handleShapefileChange}
+        className="hidden"
+      />
+      <input
+        ref={projectInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleProjectFileChange}
+        className="hidden"
+      />
+
       {/* Sidebar */}
       <aside className="w-80 border-r flex flex-col gap-4 p-4 overflow-auto">
         {/* Tab buttons */}
@@ -144,7 +204,7 @@ export function App() {
           <LayerPanel
             layers={layers}
             isLoading={isLayersLoading}
-            onAddLayer={addLayer}
+            onAddLayer={handleAddLayer}
             onRemoveLayer={removeLayer}
             onToggleLayer={toggleLayer}
             onSetLayerColor={setLayerColor}
@@ -160,14 +220,15 @@ export function App() {
           <>
             <AreaPanel
               project={project}
-              projectPath={projectPath}
+              projectName={projectName}
               isDirty={isDirty}
               areaTree={areaTree}
               selectedAreaId={selectedAreaId}
               isLoading={isAreasLoading}
               onNewProject={newProject}
-              onOpenProject={openProject}
-              onSaveProject={saveProject}
+              onOpenProject={handleOpenProject}
+              onDownloadProject={downloadProject}
+              onCloseProject={closeProject}
               onAddArea={addArea}
               onRemoveArea={removeArea}
               onUpdateArea={updateArea}
@@ -196,7 +257,7 @@ export function App() {
             .filter((layer) => layer.visible)
             .slice()
             .reverse()
-            .map((layer, index, visibleLayers) => (
+            .map((layer, _index, visibleLayers) => (
               <GeoJSONLayer
                 key={`${layer.id}-${layer.color}`}
                 layerId={layer.id}
@@ -210,7 +271,9 @@ export function App() {
                 }
                 fitBounds={visibleLayers.length === 1}
                 areaColorMap={project ? areaColorMap : undefined}
-                areaSelectionMode={activeTab === "areas" && selectedAreaId !== null}
+                areaSelectionMode={
+                  activeTab === "areas" && selectedAreaId !== null
+                }
                 showSelectionHighlight={activeTab === "layers"}
                 selectedAreaFeatureIds={selectedAreaFeatureIds}
                 filter={layer.filter}

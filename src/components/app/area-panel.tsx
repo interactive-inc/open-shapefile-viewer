@@ -12,14 +12,15 @@ import { AreaTreeView } from "@/components/area/area-tree-view";
 
 interface AreaPanelProps {
   project: AreaProject | null;
-  projectPath: string | null;
+  projectName: string | null;
   isDirty: boolean;
   areaTree: AreaWithChildren[];
   selectedAreaId: string | null;
   isLoading: boolean;
-  onNewProject: () => void;
+  onNewProject: (name: string) => void;
   onOpenProject: () => void;
-  onSaveProject: () => void;
+  onDownloadProject: () => void;
+  onCloseProject: () => void;
   onAddArea: (name: string, parentId?: string | null) => void;
   onRemoveArea: (id: string) => void;
   onUpdateArea: (id: string, updates: Partial<Omit<Area, "id">>) => void;
@@ -28,14 +29,15 @@ interface AreaPanelProps {
 
 export function AreaPanel({
   project,
-  projectPath,
+  projectName,
   isDirty,
   areaTree,
   selectedAreaId,
   isLoading,
   onNewProject,
   onOpenProject,
-  onSaveProject,
+  onDownloadProject,
+  onCloseProject,
   onAddArea,
   onRemoveArea,
   onUpdateArea,
@@ -44,6 +46,8 @@ export function AreaPanel({
   const [showAddArea, setShowAddArea] = useState(false);
   const [newAreaName, setNewAreaName] = useState("");
   const [addAsChildOf, setAddAsChildOf] = useState<string | null>(null);
+  const [showNewProject, setShowNewProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
 
   const handleAddArea = () => {
     if (newAreaName.trim()) {
@@ -69,7 +73,22 @@ export function AreaPanel({
     }
   };
 
-  const projectName = projectPath?.split("/").pop()?.replace(".json", "") ?? null;
+  const handleCreateProject = () => {
+    if (newProjectName.trim()) {
+      onNewProject(newProjectName.trim());
+      setNewProjectName("");
+      setShowNewProject(false);
+    }
+  };
+
+  const handleNewProjectKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleCreateProject();
+    } else if (e.key === "Escape") {
+      setShowNewProject(false);
+      setNewProjectName("");
+    }
+  };
 
   return (
     <Card>
@@ -87,39 +106,77 @@ export function AreaPanel({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Project controls */}
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onNewProject}
-            disabled={isLoading}
-            className="flex-1"
-          >
-            新規
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onOpenProject}
-            disabled={isLoading}
-            className="flex-1"
-          >
-            開く
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onSaveProject}
-            disabled={isLoading || !project || !isDirty}
-            className="flex-1"
-          >
-            保存
-          </Button>
-        </div>
+        {/* New project form */}
+        {showNewProject ? (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              onKeyDown={handleNewProjectKeyDown}
+              placeholder="プロジェクト名"
+              className="flex-1 text-sm px-2 py-1 border rounded"
+              autoFocus
+            />
+            <Button size="sm" onClick={handleCreateProject}>
+              作成
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setShowNewProject(false);
+                setNewProjectName("");
+              }}
+            >
+              ✕
+            </Button>
+          </div>
+        ) : (
+          /* Project controls */
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowNewProject(true)}
+              disabled={isLoading}
+              className="flex-1"
+            >
+              新規
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenProject}
+              disabled={isLoading}
+              className="flex-1"
+            >
+              開く
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDownloadProject}
+              disabled={isLoading || !project}
+              className="flex-1"
+            >
+              保存
+            </Button>
+          </div>
+        )}
 
         {project && (
           <>
+            {/* Close button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onCloseProject}
+              className="w-full text-muted-foreground"
+            >
+              プロジェクトを閉じる
+            </Button>
+
             {/* Area tree */}
             <div className="max-h-[250px] overflow-auto border rounded-md p-1">
               <AreaTreeView

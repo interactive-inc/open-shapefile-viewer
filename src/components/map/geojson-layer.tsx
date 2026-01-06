@@ -1,5 +1,5 @@
 import { GeoJSON, useMap } from "react-leaflet";
-import type { Feature, FeatureCollection, GeoJsonProperties } from "geojson";
+import type { Feature, FeatureCollection } from "geojson";
 import type { Layer, PathOptions } from "leaflet";
 import { useEffect, useRef, useMemo, useCallback } from "react";
 import { generateFeatureId, type PropertyFilter } from "@/types/layer";
@@ -206,7 +206,7 @@ export function GeoJSONLayer({
   );
 
   const onEachFeature = useCallback(
-    (feature: Feature<GeoJsonProperties>, layer: Layer) => {
+    (feature: Feature, layer: Layer) => {
       // 元インデックスをMapから取得
       const index = originalIndexMapRef.current.get(feature) ?? 0;
       const featureId = generateFeatureId(layerId, index);

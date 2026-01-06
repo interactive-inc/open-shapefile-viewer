@@ -9,8 +9,18 @@ export interface PropertyFilter {
 export interface Layer {
   id: string;
   name: string;
-  filePath: string;
   geojson: FeatureCollection;
+  visible: boolean;
+  color: string;
+  filter?: PropertyFilter;
+}
+
+/**
+ * localStorage に保存するレイヤー状態
+ * (GeoJSON は大きいので保存しない - 再度ファイルを読み込む必要あり)
+ */
+export interface SavedLayerState {
+  name: string;
   visible: boolean;
   color: string;
   filter?: PropertyFilter;
