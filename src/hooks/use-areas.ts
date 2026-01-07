@@ -86,7 +86,7 @@ export function useAreas(): UseAreasResult {
         projectLogger.log(`Restored from localStorage: ${loadedProject.name}`);
       }
     } catch (e) {
-      console.error("[Project] Failed to restore from localStorage:", e);
+      projectLogger.error("Failed to restore from localStorage:", e);
     }
   }, []);
 
@@ -98,13 +98,13 @@ export function useAreas(): UseAreasResult {
       try {
         localStorage.setItem(STORAGE_KEYS.PROJECT, JSON.stringify(project));
       } catch (e) {
-        console.error("[Project] Failed to save to localStorage:", e);
+        projectLogger.error("Failed to save to localStorage:", e);
       }
     } else {
       try {
         localStorage.removeItem(STORAGE_KEYS.PROJECT);
       } catch (e) {
-        console.error("[Project] Failed to clear localStorage:", e);
+        projectLogger.error("Failed to clear localStorage:", e);
       }
     }
   }, [project]);
@@ -145,7 +145,7 @@ export function useAreas(): UseAreasResult {
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
       setError(message);
-      console.error("Failed to open project:", e);
+      projectLogger.error("Failed to open project:", e);
     } finally {
       setIsLoading(false);
     }

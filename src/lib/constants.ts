@@ -10,13 +10,3 @@ export const STORAGE_KEYS = {
   /** 選択された都道府県の保存キー */
   PREFECTURE: "shapefile-viewer-prefecture",
 } as const;
-
-/**
- * アプリケーション設定定数
- */
-export const APP_CONFIG = {
-  /** 地図のデフォルト中心座標 (日本) */
-  DEFAULT_CENTER: [36.5, 138.0] as const,
-  /** 地図のデフォルトズームレベル */
-  DEFAULT_ZOOM: 5,
-} as const;

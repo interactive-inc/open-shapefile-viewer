@@ -40,7 +40,7 @@ export function useLayers(): UseLayersResult {
         layerLogger.log("Found saved layer settings (GeoJSON needs re-upload)");
       }
     } catch (e) {
-      console.error("[Layers] Failed to load saved state:", e);
+      layerLogger.error("Failed to load saved state:", e);
     }
   }, []);
 
@@ -58,7 +58,7 @@ export function useLayers(): UseLayersResult {
     try {
       localStorage.setItem(STORAGE_KEYS.LAYERS, JSON.stringify(savedState));
     } catch (e) {
-      console.error("[Layers] Failed to save layer state:", e);
+      layerLogger.error("Failed to save layer state:", e);
     }
   }, [layers]);
 
@@ -91,7 +91,7 @@ export function useLayers(): UseLayersResult {
       } catch (e) {
         const message = e instanceof Error ? e.message : "Unknown error";
         setError(message);
-        console.error("Failed to load shapefile:", e);
+        shapefileLogger.error("Failed to load shapefile:", e);
       } finally {
         setIsLoading(false);
       }
@@ -141,7 +141,7 @@ export function useLayers(): UseLayersResult {
     try {
       localStorage.removeItem(STORAGE_KEYS.LAYERS);
     } catch (e) {
-      console.error("[Layers] Failed to clear storage:", e);
+      layerLogger.error("Failed to clear storage:", e);
     }
   }, []);
 
