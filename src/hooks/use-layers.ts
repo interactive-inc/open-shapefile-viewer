@@ -21,7 +21,17 @@ interface UseLayersResult {
   clearAll: () => void;
 }
 
-let layerIdCounter = 0;
+/**
+ * ファイル名からレイヤーIDを生成
+ * 特殊文字を除去し、小文字に正規化
+ */
+function generateLayerIdFromName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+}
 
 export function useLayers(): UseLayersResult {
   const [layers, setLayers] = useState<Layer[]>([]);
@@ -78,7 +88,17 @@ export function useLayers(): UseLayersResult {
 
         console.log(`[Shapefile] Loaded: ${name} (${geojson.features.length} features)`);
 
-        const layerId = `layer-${++layerIdCounter}`;
+        // ファイル名ベースのレイヤーIDを生成
+        const baseLayerId = generateLayerIdFromName(name);
+
+        // 重複チェック: 同じIDが既にあれば連番を付ける
+        let layerId = baseLayerId;
+        let counter = 1;
+        while (layers.some((l) => l.id === layerId)) {
+          layerId = `${baseLayerId}_${counter}`;
+          counter++;
+        }
+
         const newLayer: Layer = {
           id: layerId,
           name,

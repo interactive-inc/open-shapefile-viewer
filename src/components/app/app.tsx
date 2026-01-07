@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useRef } from "react";
 import type { Feature } from "geojson";
 import { useLayers } from "@/hooks/use-layers";
 import { useAreas } from "@/hooks/use-areas";
+import { useMapStyle } from "@/hooks/use-map-style";
 import { MapView } from "@/components/map/map-container";
 import { GeoJSONLayer } from "@/components/map/geojson-layer";
 import { FeatureInfoPanel } from "@/components/map/feature-info-panel";
@@ -55,6 +56,8 @@ export function App() {
     addFeaturesToArea,
     getAreaById,
   } = useAreas();
+
+  const { currentStyle, setStyle, allStyles } = useMapStyle();
 
   const [activeTab, setActiveTab] = useState<TabType>("layers");
   const [selectedFeatureState, setSelectedFeatureState] =
@@ -154,6 +157,17 @@ export function App() {
     [selectedAreaId, addFeaturesToArea]
   );
 
+  const handleRemoveFeatures = useCallback(
+    (featureIds: string[]) => {
+      if (selectedAreaId) {
+        for (const featureId of featureIds) {
+          removeFeatureFromArea(selectedAreaId, featureId);
+        }
+      }
+    },
+    [selectedAreaId, removeFeatureFromArea]
+  );
+
   const handleMoveUp = (index: number) => {
     if (index > 0) {
       reorderLayers(index, index - 1);
@@ -196,6 +210,24 @@ export function App() {
       <aside className="w-80 border-r flex flex-col gap-4 p-4 overflow-auto">
         {/* Prefecture selector */}
         <PrefectureSelector />
+
+        {/* Map style selector */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-muted-foreground whitespace-nowrap">
+            地図スタイル
+          </label>
+          <select
+            value={currentStyle.id}
+            onChange={(e) => setStyle(e.target.value as typeof currentStyle.id)}
+            className="flex-1 text-sm border rounded px-2 py-1"
+          >
+            {allStyles.map((style) => (
+              <option key={style.id} value={style.id}>
+                {style.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* Tab buttons */}
         <div className="flex gap-1 p-1 bg-muted rounded-lg">
@@ -257,7 +289,9 @@ export function App() {
               layers={layers}
               selectedAreaId={selectedAreaId}
               assignedFeatureIds={new Set(areaColorMap.keys())}
+              selectedAreaFeatureIds={selectedAreaFeatureIds}
               onAddFeatures={handleAddFeatures}
+              onRemoveFeatures={handleRemoveFeatures}
               getFilteredFeatures={getFilteredFeatures}
             />
           </>
@@ -272,7 +306,7 @@ export function App() {
 
       {/* Map */}
       <main className="flex-1 relative">
-        <MapView>
+        <MapView mapStyle={currentStyle}>
           {layers
             .filter((layer) => layer.visible)
             .slice()
