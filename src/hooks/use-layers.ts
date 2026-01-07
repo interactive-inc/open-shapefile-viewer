@@ -5,8 +5,8 @@ import {
   parseShapefileFromFiles,
   extractShapefiles,
 } from "@/lib/shapefile-parser";
-
-const STORAGE_KEY = "shapefile-viewer-layers";
+import { STORAGE_KEYS } from "@/lib/constants";
+import { layerLogger, shapefileLogger } from "@/lib/logger";
 
 interface UseLayersResult {
   layers: Layer[];
@@ -35,9 +35,9 @@ export function useLayers(): UseLayersResult {
     isInitialized.current = true;
 
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEYS.LAYERS);
       if (saved) {
-        console.log("[Layers] Found saved layer settings (GeoJSON needs re-upload)");
+        layerLogger.log("Found saved layer settings (GeoJSON needs re-upload)");
       }
     } catch (e) {
       console.error("[Layers] Failed to load saved state:", e);
@@ -56,7 +56,7 @@ export function useLayers(): UseLayersResult {
     }));
 
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState));
+      localStorage.setItem(STORAGE_KEYS.LAYERS, JSON.stringify(savedState));
     } catch (e) {
       console.error("[Layers] Failed to save layer state:", e);
     }
@@ -76,7 +76,7 @@ export function useLayers(): UseLayersResult {
         const { shpFile, dbfFile, name } = extracted;
         const geojson = await parseShapefileFromFiles(shpFile, dbfFile);
 
-        console.log(`[Shapefile] Loaded: ${name} (${geojson.features.length} features)`);
+        shapefileLogger.log(`Loaded: ${name} (${geojson.features.length} features)`);
 
         const layerId = `layer-${++layerIdCounter}`;
         const newLayer: Layer = {
@@ -139,7 +139,7 @@ export function useLayers(): UseLayersResult {
     setLayers([]);
     setError(null);
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.LAYERS);
     } catch (e) {
       console.error("[Layers] Failed to clear storage:", e);
     }

@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useRef } from "react";
 import type { Feature } from "geojson";
 import { useLayers } from "@/hooks/use-layers";
 import { useAreas } from "@/hooks/use-areas";
-import { MapView } from "@/components/map/map-container";
+import { MapView } from "@/components/map/map-view";
 import { GeoJSONLayer } from "@/components/map/geojson-layer";
 import { FeatureInfoPanel } from "@/components/map/feature-info-panel";
 import { LayerPanel } from "@/components/app/layer-panel";

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-
-const PREFECTURE_STORAGE_KEY = "shapefile-viewer-prefecture";
+import { STORAGE_KEYS } from "@/lib/constants";
 
 // 日本全体の中心座標
 export const JAPAN_CENTER: [number, number] = [36.5, 138.0];
@@ -86,7 +85,7 @@ export function usePrefecture(): UsePrefectureResult {
     if (isInitialized.current) return;
     isInitialized.current = true;
 
-    const saved = localStorage.getItem(PREFECTURE_STORAGE_KEY);
+    const saved = localStorage.getItem(STORAGE_KEYS.PREFECTURE);
     if (saved) {
       setSelectedPrefectureState(saved);
     }
@@ -97,9 +96,9 @@ export function usePrefecture(): UsePrefectureResult {
 
     // localStorageに保存
     if (name) {
-      localStorage.setItem(PREFECTURE_STORAGE_KEY, name);
+      localStorage.setItem(STORAGE_KEYS.PREFECTURE, name);
     } else {
-      localStorage.removeItem(PREFECTURE_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.PREFECTURE);
     }
 
     // 地図位置を計算
@@ -122,7 +121,7 @@ export function usePrefecture(): UsePrefectureResult {
   }, []);
 
   const getInitialPosition = useCallback((): MapPosition => {
-    const saved = localStorage.getItem(PREFECTURE_STORAGE_KEY);
+    const saved = localStorage.getItem(STORAGE_KEYS.PREFECTURE);
     if (saved) {
       const pref = PREFECTURES.find((p) => p.name === saved);
       if (pref) {

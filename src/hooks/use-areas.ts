@@ -8,8 +8,8 @@ import {
 } from "@/types/area";
 import type { Layer } from "@/types/layer";
 import { getFeatureNameFromLayers } from "@/types/layer";
-
-const PROJECT_STORAGE_KEY = "shapefile-viewer-project";
+import { STORAGE_KEYS } from "@/lib/constants";
+import { projectLogger } from "@/lib/logger";
 
 interface UseAreasResult {
   // Project state
@@ -79,11 +79,11 @@ export function useAreas(): UseAreasResult {
     isInitialized.current = true;
 
     try {
-      const saved = localStorage.getItem(PROJECT_STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEYS.PROJECT);
       if (saved) {
         const loadedProject = JSON.parse(saved) as AreaProject;
         setProject(loadedProject);
-        console.log(`[Project] Restored from localStorage: ${loadedProject.name}`);
+        projectLogger.log(`Restored from localStorage: ${loadedProject.name}`);
       }
     } catch (e) {
       console.error("[Project] Failed to restore from localStorage:", e);
@@ -96,13 +96,13 @@ export function useAreas(): UseAreasResult {
 
     if (project) {
       try {
-        localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(project));
+        localStorage.setItem(STORAGE_KEYS.PROJECT, JSON.stringify(project));
       } catch (e) {
         console.error("[Project] Failed to save to localStorage:", e);
       }
     } else {
       try {
-        localStorage.removeItem(PROJECT_STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEYS.PROJECT);
       } catch (e) {
         console.error("[Project] Failed to clear localStorage:", e);
       }
@@ -141,7 +141,7 @@ export function useAreas(): UseAreasResult {
       setProject(loadedProject);
       setIsDirty(false);
       setSelectedAreaId(null);
-      console.log(`[Project] Loaded: ${loadedProject.name}`);
+      projectLogger.log(`Loaded: ${loadedProject.name}`);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
       setError(message);
