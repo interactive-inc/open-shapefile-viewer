@@ -3,6 +3,7 @@ import type { Feature } from "geojson";
 import { useLayers } from "@/hooks/use-layers";
 import { useAreas } from "@/hooks/use-areas";
 import { useMapStyle } from "@/hooks/use-map-style";
+import { useResizableSidebar } from "@/hooks/use-resizable-sidebar";
 import { MapView } from "@/components/map/map-container";
 import { GeoJSONLayer } from "@/components/map/geojson-layer";
 import { FeatureInfoPanel } from "@/components/map/feature-info-panel";
@@ -58,6 +59,7 @@ export function App() {
   } = useAreas();
 
   const { currentStyle, setStyle, allStyles } = useMapStyle();
+  const { width: sidebarWidth, handleMouseDown: handleSidebarResize } = useResizableSidebar();
 
   const [activeTab, setActiveTab] = useState<TabType>("layers");
   const [selectedFeatureState, setSelectedFeatureState] =
@@ -207,7 +209,15 @@ export function App() {
       />
 
       {/* Sidebar */}
-      <aside className="w-80 border-r flex flex-col gap-4 p-4 overflow-auto">
+      <aside
+        className="border-r flex flex-col gap-4 p-4 overflow-auto relative"
+        style={{ width: sidebarWidth }}
+      >
+        {/* Resize handle */}
+        <div
+          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/50 active:bg-primary transition-colors"
+          onMouseDown={handleSidebarResize}
+        />
         {/* Prefecture selector */}
         <PrefectureSelector />
 
