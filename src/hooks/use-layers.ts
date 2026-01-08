@@ -12,21 +12,34 @@ interface UseLayersResult {
   layers: Layer[];
   isLoading: boolean;
   error: string | null;
+  globalFilter: PropertyFilter | undefined;
   addLayerFromFiles: (files: FileList) => Promise<void>;
   removeLayer: (id: string) => void;
   toggleLayer: (id: string) => void;
   setLayerColor: (id: string, color: string) => void;
   setLayerFilter: (id: string, filter: PropertyFilter | undefined) => void;
+  setGlobalFilter: (filter: PropertyFilter | undefined) => void;
   reorderLayers: (fromIndex: number, toIndex: number) => void;
   clearAll: () => void;
 }
 
-let layerIdCounter = 0;
+/**
+ * ファイル名からレイヤーIDを生成
+ * 特殊文字を除去し、小文字に正規化
+ */
+function generateLayerIdFromName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+}
 
 export function useLayers(): UseLayersResult {
   const [layers, setLayers] = useState<Layer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [globalFilter, setGlobalFilterState] = useState<PropertyFilter | undefined>(undefined);
   const isInitialized = useRef(false);
 
   // 起動時にlocalStorageから設定を復元 (GeoJSONは復元しない)
@@ -78,7 +91,17 @@ export function useLayers(): UseLayersResult {
 
         shapefileLogger.log(`Loaded: ${name} (${geojson.features.length} features)`);
 
-        const layerId = `layer-${++layerIdCounter}`;
+        // ファイル名ベースのレイヤーIDを生成
+        const baseLayerId = generateLayerIdFromName(name);
+
+        // 重複チェック: 同じIDが既にあれば連番を付ける
+        let layerId = baseLayerId;
+        let counter = 1;
+        while (layers.some((l) => l.id === layerId)) {
+          layerId = `${baseLayerId}_${counter}`;
+          counter++;
+        }
+
         const newLayer: Layer = {
           id: layerId,
           name,
@@ -138,6 +161,7 @@ export function useLayers(): UseLayersResult {
   const clearAll = useCallback(() => {
     setLayers([]);
     setError(null);
+    setGlobalFilterState(undefined);
     try {
       localStorage.removeItem(STORAGE_KEYS.LAYERS);
     } catch (e) {
@@ -145,15 +169,24 @@ export function useLayers(): UseLayersResult {
     }
   }, []);
 
+  const setGlobalFilter = useCallback(
+    (filter: PropertyFilter | undefined) => {
+      setGlobalFilterState(filter);
+    },
+    []
+  );
+
   return {
     layers,
     isLoading,
     error,
+    globalFilter,
     addLayerFromFiles,
     removeLayer,
     toggleLayer,
     setLayerColor,
     setLayerFilter,
+    setGlobalFilter,
     reorderLayers,
     clearAll,
   };

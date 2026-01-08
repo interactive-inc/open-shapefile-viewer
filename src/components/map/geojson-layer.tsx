@@ -31,6 +31,7 @@ interface GeoJSONLayerProps {
   selectedAreaFeatureIds?: Set<string>; // 選択中エリアに属するフィーチャーID
   // フィルター
   filter?: PropertyFilter;
+  globalFilter?: PropertyFilter; // 全レイヤー共通のグローバルフィルタ
 }
 
 export function GeoJSONLayer({
@@ -45,27 +46,47 @@ export function GeoJSONLayer({
   showSelectionHighlight = true,
   selectedAreaFeatureIds,
   filter,
+  globalFilter,
 }: GeoJSONLayerProps) {
   const map = useMap();
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
 
   // フィルター適用 (元のインデックスを保持)
+  // レイヤーフィルターとグローバルフィルタの両方を適用
   const { filteredData, originalIndexMap } = useMemo(() => {
-    if (!filter?.enabled || !filter.key) {
+    const hasLayerFilter = filter?.enabled && filter?.key;
+    const hasGlobalFilter = globalFilter?.enabled && globalFilter?.key;
+
+    if (!hasLayerFilter && !hasGlobalFilter) {
       // フィルターなし: 全フィーチャーをそのまま使用
       const indexMap = new Map<Feature, number>();
       data.features.forEach((f, i) => indexMap.set(f, i));
       return { filteredData: data, originalIndexMap: indexMap };
     }
 
-    // フィルター適用 (OR条件: いずれかの値にマッチ)
+    // フィルター適用 (両方のフィルタをAND条件で適用)
     const filtered: FilteredFeature[] = [];
-    const valuesSet = new Set(filter.values);
+    const layerValuesSet = hasLayerFilter ? new Set(filter.values) : null;
+    const globalValuesSet = hasGlobalFilter ? new Set(globalFilter.values) : null;
+
     data.features.forEach((feature, index) => {
-      const value = feature.properties?.[filter.key];
-      if (valuesSet.has(String(value))) {
-        filtered.push({ feature, originalIndex: index });
+      // レイヤーフィルタのチェック
+      if (layerValuesSet && filter) {
+        const value = feature.properties?.[filter.key];
+        if (!layerValuesSet.has(String(value))) {
+          return; // レイヤーフィルタに一致しない
+        }
       }
+
+      // グローバルフィルタのチェック
+      if (globalValuesSet && globalFilter) {
+        const value = feature.properties?.[globalFilter.key];
+        if (!globalValuesSet.has(String(value))) {
+          return; // グローバルフィルタに一致しない
+        }
+      }
+
+      filtered.push({ feature, originalIndex: index });
     });
 
     const indexMap = new Map<Feature, number>();
@@ -78,7 +99,7 @@ export function GeoJSONLayer({
       filteredData: { ...data, features: newFeatures },
       originalIndexMap: indexMap,
     };
-  }, [data, filter]);
+  }, [data, filter, globalFilter]);
 
   // 最新のコールバックをrefに保存 (クロージャ問題を回避)
   const onFeatureClickRef = useRef<FeatureClickHandler>(onFeatureClick);
@@ -250,11 +271,12 @@ export function GeoJSONLayer({
   // キーにエリア割り当て、選択モード、フィルターを含めて、変更時に再描画
   const selectionModeKey = areaSelectionMode ? "select" : "view";
   const filterKey = filter?.enabled ? `${filter.key}=${filter.values.join(",")}` : "nofilter";
+  const globalFilterKey = globalFilter?.enabled ? `g:${globalFilter.key}=${globalFilter.values.join(",")}` : "noglobal";
 
   return (
     <GeoJSON
       ref={geoJsonRef}
-      key={`${layerId}-${filteredData.features.length}-${color}-${areaColorMapKey}-${selectionModeKey}-${filterKey}`}
+      key={`${layerId}-${filteredData.features.length}-${color}-${areaColorMapKey}-${selectionModeKey}-${filterKey}-${globalFilterKey}`}
       data={filteredData}
       style={style}
       onEachFeature={onEachFeature}

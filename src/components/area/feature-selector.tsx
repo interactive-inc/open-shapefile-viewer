@@ -1,7 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { Feature, Geometry, GeoJsonProperties } from "geojson";
 import { generateFeatureId, type Layer } from "@/types/layer";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,13 +9,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PropertyMultiSelect } from "@/components/ui/property-multi-select";
-import { filterFeaturesByProperty } from "@/lib/property-filter-utils";
 
 interface FeatureSelectorProps {
   layers: Layer[];
   selectedAreaId: string | null;
   assignedFeatureIds: Set<string>;
+  selectedAreaFeatureIds: Set<string> | undefined;
   onAddFeatures: (featureIds: string[]) => void;
+  onRemoveFeatures: (featureIds: string[]) => void;
   getFilteredFeatures: (
     layer: Layer
   ) => Feature<Geometry | null, GeoJsonProperties>[];
@@ -26,12 +26,14 @@ export function FeatureSelector({
   layers,
   selectedAreaId,
   assignedFeatureIds,
+  selectedAreaFeatureIds,
   onAddFeatures,
+  onRemoveFeatures,
   getFilteredFeatures,
 }: FeatureSelectorProps) {
   const [selectedLayerId, setSelectedLayerId] = useState<string>("");
   const [selectedKey, setSelectedKey] = useState<string>("");
-  const [selectedValues, setSelectedValues] = useState<Set<string>>(new Set());
+  const [showOtherAreaAssigned, setShowOtherAreaAssigned] = useState<boolean>(false);
 
   const selectedLayer = useMemo(
     () => layers.find((l) => l.id === selectedLayerId),
@@ -50,64 +52,126 @@ export function FeatureSelector({
     [selectedLayer]
   );
 
-  // 割り当て済みを除外したフィーチャー (選択肢表示用)
-  const unassignedFeatures = useMemo(() => {
-    if (!selectedLayer) return [];
-    return filteredFeatures.filter((feature) => {
-      const index = allFeatures.findIndex((f) => f === feature);
-      const featureId = generateFeatureId(selectedLayer.id, index);
-      return !assignedFeatureIds.has(featureId);
+  // フィーチャーとIDのマッピング
+  const featureIdMap = useMemo(() => {
+    if (!selectedLayer) return new Map<Feature<Geometry | null, GeoJsonProperties>, string>();
+    const map = new Map<Feature<Geometry | null, GeoJsonProperties>, string>();
+    allFeatures.forEach((feature, index) => {
+      map.set(feature, generateFeatureId(selectedLayer.id, index));
     });
-  }, [selectedLayer, filteredFeatures, allFeatures, assignedFeatureIds]);
+    return map;
+  }, [selectedLayer, allFeatures]);
+
+  // 選択中エリアに属するフィーチャー (このレイヤーの)
+  const selectedAreaFeaturesInLayer = useMemo(() => {
+    if (!selectedLayer || !selectedAreaFeatureIds) return [];
+    return filteredFeatures.filter((feature) => {
+      const featureId = featureIdMap.get(feature);
+      return featureId && selectedAreaFeatureIds.has(featureId);
+    });
+  }, [selectedLayer, filteredFeatures, featureIdMap, selectedAreaFeatureIds]);
+
+  // 他のエリアに割り当て済みのフィーチャー (選択可能にしない)
+  const otherAreaAssignedFeatures = useMemo(() => {
+    if (!selectedLayer || !selectedAreaFeatureIds) return new Set<Feature<Geometry | null, GeoJsonProperties>>();
+    const set = new Set<Feature<Geometry | null, GeoJsonProperties>>();
+    filteredFeatures.forEach((feature) => {
+      const featureId = featureIdMap.get(feature);
+      if (featureId && assignedFeatureIds.has(featureId) && !selectedAreaFeatureIds.has(featureId)) {
+        set.add(feature);
+      }
+    });
+    return set;
+  }, [selectedLayer, filteredFeatures, featureIdMap, assignedFeatureIds, selectedAreaFeatureIds]);
+
+  // 表示用フィーチャー (他エリア割当済みを除外するかどうか)
+  const displayFeatures = useMemo(() => {
+    if (showOtherAreaAssigned) return filteredFeatures;
+    return filteredFeatures.filter((f) => !otherAreaAssignedFeatures.has(f));
+  }, [filteredFeatures, otherAreaAssignedFeatures, showOtherAreaAssigned]);
+
+  // 選択中エリアに属するフィーチャーの値をSet化
+  const selectedValues = useMemo(() => {
+    if (!selectedKey) return new Set<string>();
+    const values = new Set<string>();
+    selectedAreaFeaturesInLayer.forEach((feature) => {
+      const value = feature.properties?.[selectedKey];
+      if (value !== null && value !== undefined) {
+        values.add(String(value));
+      }
+    });
+    return values;
+  }, [selectedKey, selectedAreaFeaturesInLayer]);
 
   // フィルター適用状態
   const isFilterApplied = selectedLayer?.filter?.enabled ?? false;
   const totalCount = allFeatures.length;
   const filteredCount = filteredFeatures.length;
-  const unassignedCount = unassignedFeatures.length;
 
-  // Get matching features (already excludes assigned ones via unassignedFeatures)
-  const matchingFeatures = useMemo(() => {
-    if (!selectedLayer || !selectedKey || selectedValues.size === 0) {
-      return [];
-    }
+  // 値の変更ハンドラ (チェックのON/OFFで追加/削除)
+  const handleValuesChange = useCallback(
+    (newValues: Set<string>) => {
+      if (!selectedLayer || !selectedKey) return;
 
-    // 未割り当てフィーチャーから属性で絞り込み
-    const matchedFeatures = filterFeaturesByProperty(
-      unassignedFeatures,
+      // 追加された値
+      const addedValues = [...newValues].filter((v) => !selectedValues.has(v));
+      // 削除された値
+      const removedValues = [...selectedValues].filter((v) => !newValues.has(v));
+
+      // 追加: その値を持つ未割当フィーチャーをエリアに追加
+      if (addedValues.length > 0) {
+        const featureIdsToAdd: string[] = [];
+        filteredFeatures.forEach((feature) => {
+          const featureId = featureIdMap.get(feature);
+          if (!featureId) return;
+          // 既に他のエリアに割り当て済みならスキップ
+          if (assignedFeatureIds.has(featureId)) return;
+          const value = feature.properties?.[selectedKey];
+          if (value !== null && value !== undefined && addedValues.includes(String(value))) {
+            featureIdsToAdd.push(featureId);
+          }
+        });
+        if (featureIdsToAdd.length > 0) {
+          onAddFeatures(featureIdsToAdd);
+        }
+      }
+
+      // 削除: その値を持つ選択中エリアのフィーチャーを削除
+      if (removedValues.length > 0) {
+        const featureIdsToRemove: string[] = [];
+        selectedAreaFeaturesInLayer.forEach((feature) => {
+          const featureId = featureIdMap.get(feature);
+          if (!featureId) return;
+          const value = feature.properties?.[selectedKey];
+          if (value !== null && value !== undefined && removedValues.includes(String(value))) {
+            featureIdsToRemove.push(featureId);
+          }
+        });
+        if (featureIdsToRemove.length > 0) {
+          onRemoveFeatures(featureIdsToRemove);
+        }
+      }
+    },
+    [
+      selectedLayer,
       selectedKey,
-      Array.from(selectedValues)
-    );
-
-    // 元のfeatures配列でのインデックスを取得してID生成
-    return matchedFeatures.map((feature) => {
-      const index = allFeatures.findIndex((f) => f === feature);
-      return {
-        feature,
-        id: generateFeatureId(selectedLayer.id, index),
-        index,
-      };
-    });
-  }, [selectedLayer, unassignedFeatures, allFeatures, selectedKey, selectedValues]);
-
-  const handleAddAll = () => {
-    if (matchingFeatures.length > 0) {
-      onAddFeatures(matchingFeatures.map((f) => f.id));
-    }
-  };
+      selectedValues,
+      filteredFeatures,
+      featureIdMap,
+      assignedFeatureIds,
+      selectedAreaFeaturesInLayer,
+      onAddFeatures,
+      onRemoveFeatures,
+    ]
+  );
 
   const handleLayerChange = (layerId: string) => {
     setSelectedLayerId(layerId);
     setSelectedKey("");
-    setSelectedValues(new Set());
   };
 
   const handleKeyChange = (key: string) => {
     setSelectedKey(key);
-  };
-
-  const handleValuesChange = (values: Set<string>) => {
-    setSelectedValues(values);
   };
 
   if (!selectedAreaId) {
@@ -125,7 +189,7 @@ export function FeatureSelector({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm">属性フィルタ</CardTitle>
-        <CardDescription>属性値でフィーチャーを一括選択</CardDescription>
+        <CardDescription>チェックでエリアに追加/削除</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Layer selector */}
@@ -160,36 +224,33 @@ export function FeatureSelector({
 
         {/* Property multi-select */}
         {selectedLayerId && (
-          <PropertyMultiSelect
-            features={unassignedFeatures}
-            selectedKey={selectedKey}
-            selectedValues={selectedValues}
-            onKeyChange={handleKeyChange}
-            onValuesChange={handleValuesChange}
-            keyLabel="属性キー"
-          />
-        )}
-
-        {/* Results */}
-        {selectedValues.size > 0 && (
-          <div className="space-y-2">
-            <p className="text-sm">
-              {matchingFeatures.length} 件マッチ
-              {unassignedCount > 0 && unassignedCount < filteredCount && (
-                <span className="text-muted-foreground">
-                  {" "}(未割当のみ表示)
-                </span>
-              )}
-            </p>
-            <Button
-              size="sm"
-              onClick={handleAddAll}
-              disabled={matchingFeatures.length === 0}
-              className="w-full"
-            >
-              {matchingFeatures.length > 0 ? `${matchingFeatures.length} 件を追加` : "追加可能なフィーチャーなし"}
-            </Button>
-          </div>
+          <>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="show-other-assigned"
+                checked={showOtherAreaAssigned}
+                onChange={(e) => setShowOtherAreaAssigned(e.target.checked)}
+                className="rounded"
+              />
+              <label htmlFor="show-other-assigned" className="text-xs text-muted-foreground cursor-pointer">
+                他エリア割当済みも表示
+              </label>
+            </div>
+            <PropertyMultiSelect
+              features={displayFeatures}
+              selectedKey={selectedKey}
+              selectedValues={selectedValues}
+              onKeyChange={handleKeyChange}
+              onValuesChange={handleValuesChange}
+              keyLabel="属性キー"
+            />
+            {selectedKey && (
+              <p className="text-xs text-muted-foreground">
+                選択中エリア: {selectedAreaFeaturesInLayer.length} 件
+              </p>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

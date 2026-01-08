@@ -6,9 +6,11 @@ import {
 import { useEffect, type ReactNode } from "react";
 import L from "leaflet";
 import { usePrefecture } from "@/hooks/use-prefecture";
+import type { MapStyleConfig } from "@/hooks/use-map-style";
 
 interface MapViewProps {
   children?: ReactNode;
+  mapStyle: MapStyleConfig;
 }
 
 // Canvas レンダラーを使用 (大量のフィーチャーに最適)
@@ -31,7 +33,7 @@ function MapPositionSync() {
   return null;
 }
 
-export function MapView({ children }: MapViewProps) {
+export function MapView({ children, mapStyle }: MapViewProps) {
   const { getInitialPosition } = usePrefecture();
   const initialPosition = getInitialPosition();
 
@@ -44,9 +46,15 @@ export function MapView({ children }: MapViewProps) {
       preferCanvas={true}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        key={mapStyle.id}
+        attribution={mapStyle.attribution}
+        url={mapStyle.url}
+        className={mapStyle.filter ? "map-tile-filtered" : undefined}
       />
+      {/* CSSフィルターを適用するためのスタイル */}
+      {mapStyle.filter && (
+        <style>{`.map-tile-filtered { filter: ${mapStyle.filter}; }`}</style>
+      )}
       <MapPositionSync />
       {children}
     </LeafletMapContainer>
