@@ -1,6 +1,7 @@
 /**
  * LocalStorage キー定数
  * アプリケーション全体で使用するlocalStorageキーを一元管理
+ * 各キーにはプレフィックス "shapefile-viewer-" を付与
  */
 export const STORAGE_KEYS = {
   /** エリアプロジェクトの保存キー */
