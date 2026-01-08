@@ -9,4 +9,8 @@ export const STORAGE_KEYS = {
   LAYERS: "shapefile-viewer-layers",
   /** 選択された都道府県の保存キー */
   PREFECTURE: "shapefile-viewer-prefecture",
+  /** 地図スタイルの保存キー */
+  MAP_STYLE: "shapefile-viewer-map-style",
+  /** サイドバー幅の保存キー */
+  SIDEBAR_WIDTH: "shapefile-viewer-sidebar-width",
 } as const;

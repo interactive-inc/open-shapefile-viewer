@@ -5,6 +5,7 @@ import {
   createEmptyProject,
   generateAreaId,
   getNextAvailableColor,
+  parseAreaProject,
 } from "@/types/area";
 import type { Layer } from "@/types/layer";
 import { getFeatureNameFromLayers } from "@/types/layer";
@@ -45,7 +46,6 @@ interface UseAreasResult {
 
   // Utils
   getAreaById: (id: string) => Area | undefined;
-  getAreaColor: (featureId: string) => string | null;
   areaColorMap: Map<string, string>;
 }
 
@@ -81,9 +81,14 @@ export function useAreas(): UseAreasResult {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PROJECT);
       if (saved) {
-        const loadedProject = JSON.parse(saved) as AreaProject;
-        setProject(loadedProject);
-        projectLogger.log(`Restored from localStorage: ${loadedProject.name}`);
+        const loadedProject = parseAreaProject(saved);
+        if (loadedProject) {
+          setProject(loadedProject);
+          projectLogger.log(`Restored from localStorage: ${loadedProject.name}`);
+        } else {
+          projectLogger.warn("Invalid project format in localStorage, clearing");
+          localStorage.removeItem(STORAGE_KEYS.PROJECT);
+        }
       }
     } catch (e) {
       projectLogger.error("Failed to restore from localStorage:", e);
@@ -131,10 +136,9 @@ export function useAreas(): UseAreasResult {
 
     try {
       const text = await file.text();
-      const loadedProject = JSON.parse(text) as AreaProject;
+      const loadedProject = parseAreaProject(text);
 
-      // バリデーション
-      if (!loadedProject.name || !loadedProject.areas) {
+      if (!loadedProject) {
         throw new Error("無効なプロジェクトファイルです");
       }
 
@@ -143,7 +147,7 @@ export function useAreas(): UseAreasResult {
       setSelectedAreaId(null);
       projectLogger.log(`Loaded: ${loadedProject.name}`);
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Unknown error";
+      const message = e instanceof Error ? e.message : "ファイルの読み込みに失敗しました";
       setError(message);
       projectLogger.error("Failed to open project:", e);
     } finally {
@@ -352,16 +356,6 @@ export function useAreas(): UseAreasResult {
     [project]
   );
 
-  // Get area color for a feature
-  const getAreaColor = useCallback(
-    (featureId: string): string | null => {
-      if (!project) return null;
-      const area = project.areas.find((a) => a.featureIds.includes(featureId));
-      return area?.color ?? null;
-    },
-    [project]
-  );
-
   // Area color map
   const areaColorMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -396,6 +390,5 @@ export function useAreas(): UseAreasResult {
     removeFeatureFromArea,
     addFeaturesToArea,
     getAreaById,
-    getAreaColor,
   };
 }

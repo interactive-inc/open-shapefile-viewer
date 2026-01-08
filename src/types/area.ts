@@ -84,3 +84,54 @@ export function buildAreaTree(areas: Area[]): AreaWithChildren[] {
 export function generateAreaId(): string {
   return `area-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
+
+/**
+ * Area オブジェクトのバリデーション
+ */
+function isValidArea(data: unknown): data is Area {
+  if (typeof data !== "object" || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  return (
+    typeof obj.id === "string" &&
+    typeof obj.name === "string" &&
+    (obj.parentId === null || typeof obj.parentId === "string") &&
+    typeof obj.color === "string" &&
+    Array.isArray(obj.featureIds) &&
+    obj.featureIds.every((id) => typeof id === "string")
+  );
+}
+
+/**
+ * AreaProject のバリデーション (JSON.parse後のデータ検証用)
+ * @param data - パース済みの不明なデータ
+ * @returns 有効なAreaProjectの場合true
+ */
+export function isValidAreaProject(data: unknown): data is AreaProject {
+  if (typeof data !== "object" || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  return (
+    typeof obj.version === "string" &&
+    typeof obj.name === "string" &&
+    typeof obj.createdAt === "string" &&
+    typeof obj.updatedAt === "string" &&
+    Array.isArray(obj.areas) &&
+    obj.areas.every(isValidArea)
+  );
+}
+
+/**
+ * JSON文字列からAreaProjectを安全にパース
+ * @param json - JSON文字列
+ * @returns パース成功時はAreaProject、失敗時はnull
+ */
+export function parseAreaProject(json: string): AreaProject | null {
+  try {
+    const parsed: unknown = JSON.parse(json);
+    if (isValidAreaProject(parsed)) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}

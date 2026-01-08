@@ -42,22 +42,7 @@ export function useLayers(): UseLayersResult {
   const [globalFilter, setGlobalFilterState] = useState<PropertyFilter | undefined>(undefined);
   const isInitialized = useRef(false);
 
-  // 起動時にlocalStorageから設定を復元 (GeoJSONは復元しない)
-  useEffect(() => {
-    if (isInitialized.current) return;
-    isInitialized.current = true;
-
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.LAYERS);
-      if (saved) {
-        layerLogger.log("Found saved layer settings (GeoJSON needs re-upload)");
-      }
-    } catch (e) {
-      layerLogger.error("Failed to load saved state:", e);
-    }
-  }, []);
-
-  // レイヤー変更時に設定を自動保存 (GeoJSONは除く)
+  // レイヤー変更時に設定を自動保存 (GeoJSONは除く、再アップロードが必要)
   useEffect(() => {
     if (!isInitialized.current) return;
 
