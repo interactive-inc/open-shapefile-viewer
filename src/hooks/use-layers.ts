@@ -12,11 +12,13 @@ interface UseLayersResult {
   layers: Layer[];
   isLoading: boolean;
   error: string | null;
+  globalFilter: PropertyFilter | undefined;
   addLayerFromFiles: (files: FileList) => Promise<void>;
   removeLayer: (id: string) => void;
   toggleLayer: (id: string) => void;
   setLayerColor: (id: string, color: string) => void;
   setLayerFilter: (id: string, filter: PropertyFilter | undefined) => void;
+  setGlobalFilter: (filter: PropertyFilter | undefined) => void;
   reorderLayers: (fromIndex: number, toIndex: number) => void;
   clearAll: () => void;
 }
@@ -37,6 +39,7 @@ export function useLayers(): UseLayersResult {
   const [layers, setLayers] = useState<Layer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [globalFilter, setGlobalFilterState] = useState<PropertyFilter | undefined>(undefined);
   const isInitialized = useRef(false);
 
   // 起動時にlocalStorageから設定を復元 (GeoJSONは復元しない)
@@ -158,6 +161,7 @@ export function useLayers(): UseLayersResult {
   const clearAll = useCallback(() => {
     setLayers([]);
     setError(null);
+    setGlobalFilterState(undefined);
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch (e) {
@@ -165,15 +169,24 @@ export function useLayers(): UseLayersResult {
     }
   }, []);
 
+  const setGlobalFilter = useCallback(
+    (filter: PropertyFilter | undefined) => {
+      setGlobalFilterState(filter);
+    },
+    []
+  );
+
   return {
     layers,
     isLoading,
     error,
+    globalFilter,
     addLayerFromFiles,
     removeLayer,
     toggleLayer,
     setLayerColor,
     setLayerFilter,
+    setGlobalFilter,
     reorderLayers,
     clearAll,
   };

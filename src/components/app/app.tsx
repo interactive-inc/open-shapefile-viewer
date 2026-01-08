@@ -11,6 +11,7 @@ import { LayerPanel } from "@/components/app/layer-panel";
 import { AreaPanel } from "@/components/app/area-panel";
 import { PrefectureSelector } from "@/components/app/prefecture-selector";
 import { FeatureSelector } from "@/components/area/feature-selector";
+import { GlobalLayerFilter } from "@/components/layer/global-layer-filter";
 import { Button } from "@/components/ui/button";
 
 type TabType = "layers" | "areas";
@@ -26,11 +27,13 @@ export function App() {
     layers,
     isLoading: isLayersLoading,
     error: layersError,
+    globalFilter,
     addLayerFromFiles,
     removeLayer,
     toggleLayer,
     setLayerColor,
     setLayerFilter,
+    setGlobalFilter,
     reorderLayers,
     clearAll: clearAllLayers,
   } = useLayers();
@@ -261,18 +264,27 @@ export function App() {
 
         {/* Layer panel */}
         {activeTab === "layers" && (
-          <LayerPanel
-            layers={layers}
-            isLoading={isLayersLoading}
-            onAddLayer={handleAddLayer}
-            onRemoveLayer={removeLayer}
-            onToggleLayer={toggleLayer}
-            onSetLayerColor={setLayerColor}
-            onSetLayerFilter={setLayerFilter}
-            onMoveUp={handleMoveUp}
-            onMoveDown={handleMoveDown}
-            onClearAll={handleClearAll}
-          />
+          <>
+            <LayerPanel
+              layers={layers}
+              isLoading={isLayersLoading}
+              onAddLayer={handleAddLayer}
+              onRemoveLayer={removeLayer}
+              onToggleLayer={toggleLayer}
+              onSetLayerColor={setLayerColor}
+              onSetLayerFilter={setLayerFilter}
+              onMoveUp={handleMoveUp}
+              onMoveDown={handleMoveDown}
+              onClearAll={handleClearAll}
+            />
+
+            <GlobalLayerFilter
+              layers={layers}
+              globalFilter={globalFilter}
+              onSetGlobalFilter={setGlobalFilter}
+              getFilteredFeatures={getFilteredFeatures}
+            />
+          </>
         )}
 
         {/* Area panel */}
@@ -341,6 +353,7 @@ export function App() {
                 showSelectionHighlight={activeTab === "layers"}
                 selectedAreaFeatureIds={selectedAreaFeatureIds}
                 filter={layer.filter}
+                globalFilter={globalFilter}
               />
             ))}
         </MapView>
