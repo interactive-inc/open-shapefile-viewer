@@ -88,6 +88,14 @@ describe("useLayers", () => {
       // Assert
       expect(result.current.error).toBeNull();
     });
+
+    it("globalFilterがundefinedで開始する", () => {
+      // Act
+      const { result } = renderHook(() => useLayers());
+
+      // Assert
+      expect(result.current.globalFilter).toBeUndefined();
+    });
   });
 
   describe("addLayerFromFiles", () => {
@@ -385,6 +393,131 @@ describe("useLayers", () => {
 
       // Assert
       expect(result.current.error).toBeNull();
+    });
+
+    it("globalFilterもクリアする", async () => {
+      // Arrange
+      const { result } = renderHook(() => useLayers());
+      act(() => {
+        result.current.setGlobalFilter({ key: "name", values: ["Test"], enabled: true });
+      });
+      expect(result.current.globalFilter).toBeDefined();
+
+      // Act
+      act(() => {
+        result.current.clearAll();
+      });
+
+      // Assert
+      expect(result.current.globalFilter).toBeUndefined();
+    });
+  });
+
+  describe("globalFilter", () => {
+    it("グローバルフィルターを設定する", () => {
+      // Arrange
+      const { result } = renderHook(() => useLayers());
+      const filter = { key: "type", values: ["A", "B"], enabled: true };
+
+      // Act
+      act(() => {
+        result.current.setGlobalFilter(filter);
+      });
+
+      // Assert
+      expect(result.current.globalFilter).toEqual(filter);
+    });
+
+    it("グローバルフィルターを更新する", () => {
+      // Arrange
+      const { result } = renderHook(() => useLayers());
+      const initialFilter = { key: "type", values: ["A"], enabled: true };
+      const updatedFilter = { key: "category", values: ["X", "Y"], enabled: true };
+      act(() => {
+        result.current.setGlobalFilter(initialFilter);
+      });
+
+      // Act
+      act(() => {
+        result.current.setGlobalFilter(updatedFilter);
+      });
+
+      // Assert
+      expect(result.current.globalFilter).toEqual(updatedFilter);
+    });
+
+    it("グローバルフィルターをundefinedに設定して解除する", () => {
+      // Arrange
+      const { result } = renderHook(() => useLayers());
+      act(() => {
+        result.current.setGlobalFilter({ key: "type", values: ["A"], enabled: true });
+      });
+      expect(result.current.globalFilter).toBeDefined();
+
+      // Act
+      act(() => {
+        result.current.setGlobalFilter(undefined);
+      });
+
+      // Assert
+      expect(result.current.globalFilter).toBeUndefined();
+    });
+
+    it("enabledをfalseに設定してフィルターを無効化する", () => {
+      // Arrange
+      const { result } = renderHook(() => useLayers());
+      const filter = { key: "type", values: ["A"], enabled: false };
+
+      // Act
+      act(() => {
+        result.current.setGlobalFilter(filter);
+      });
+
+      // Assert
+      expect(result.current.globalFilter?.enabled).toBe(false);
+    });
+  });
+
+  describe("レイヤーIDの生成", () => {
+    it("ファイル名からレイヤーIDを生成する", async () => {
+      // Arrange
+      const { fileList } = setupValidShapefileMocks("My Test Layer");
+      const { result } = renderHook(() => useLayers());
+
+      // Act
+      await act(async () => {
+        await result.current.addLayerFromFiles(fileList);
+      });
+
+      // Assert
+      // IDは小文字に正規化され、特殊文字は_に変換される
+      expect(result.current.layers[0].id).toMatch(/^[a-z0-9_-]+$/);
+    });
+
+    it("同名ファイルを追加すると連番IDになる", async () => {
+      // Arrange
+      const shpFile1 = new File([""], "data.shp");
+      const shpFile2 = new File([""], "data.shp");
+
+      mockExtractShapefiles
+        .mockReturnValueOnce({ shpFile: shpFile1, dbfFile: undefined, name: "data" })
+        .mockReturnValueOnce({ shpFile: shpFile2, dbfFile: undefined, name: "data" });
+      mockParseShapefileFromFiles.mockResolvedValue(mockGeoJson);
+
+      const { result } = renderHook(() => useLayers());
+
+      // Act - 順次追加して状態の更新を待つ
+      await act(async () => {
+        await result.current.addLayerFromFiles(createMockFileList(shpFile1));
+      });
+      await act(async () => {
+        await result.current.addLayerFromFiles(createMockFileList(shpFile2));
+      });
+
+      // Assert
+      expect(result.current.layers).toHaveLength(2);
+      expect(result.current.layers[0].id).toBe("data");
+      expect(result.current.layers[1].id).toBe("data_1");
     });
   });
 });

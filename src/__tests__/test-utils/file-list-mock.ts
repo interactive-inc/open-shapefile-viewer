@@ -4,14 +4,36 @@
  */
 
 /**
+ * テスト用 FileList 互換インターフェース
+ * ブラウザの FileList は直接インスタンス化できないため、
+ * テスト環境用に互換性のあるモックを提供する
+ */
+export interface MockFileList extends Iterable<File> {
+  readonly length: number;
+  item(index: number): File | null;
+  readonly [index: number]: File;
+}
+
+/**
+ * MockFileList を FileList 型として返すヘルパー
+ * テスト対象コードが FileList 型を期待する場合に使用
+ *
+ * @remarks
+ * FileList はブラウザ API であり、テスト環境では直接作成できないため、
+ * 互換性のあるオブジェクトを型アサーションで返す。
+ * この型アサーションはテストユーティリティに限定して使用し、
+ * プロダクションコードでは使用しないこと。
+ */
+function asMockFileList(mock: MockFileList): FileList {
+  // テスト環境専用: FileList API を完全に実装したモックオブジェクト
+  return mock as FileList;
+}
+
+/**
  * File配列からFileListモックを作成する
  */
 export function createMockFileList(...files: File[]): FileList {
-  const fileList: Record<number, File> & {
-    length: number;
-    item: (index: number) => File | null;
-    [Symbol.iterator]: () => IterableIterator<File>;
-  } = {
+  const mockFileList: MockFileList = {
     length: files.length,
     item: (index: number): File | null => files[index] ?? null,
     [Symbol.iterator]: function* (): IterableIterator<File> {
@@ -19,14 +41,11 @@ export function createMockFileList(...files: File[]): FileList {
         yield file;
       }
     },
-  };
+    // インデックスアクセスを追加
+    ...Object.fromEntries(files.map((file, index) => [index, file])),
+  } as MockFileList;
 
-  // インデックスアクセスを追加
-  files.forEach((file, index) => {
-    fileList[index] = file;
-  });
-
-  return fileList as unknown as FileList;
+  return asMockFileList(mockFileList);
 }
 
 /**
