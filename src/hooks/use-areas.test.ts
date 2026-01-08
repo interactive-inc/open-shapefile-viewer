@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useAreas } from "./use-areas";
+// Test updated for getAreaColor removal
 
 describe("useAreas", () => {
   beforeEach(() => {
