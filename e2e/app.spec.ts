@@ -142,6 +142,116 @@ test.describe("エリア機能", () => {
   });
 });
 
+test.describe("エリア名編集機能", () => {
+  test.beforeEach(async ({ page }) => {
+    // Arrange - 共通: ページ遷移、エリアタブに切り替え、プロジェクト作成
+    await page.goto("/");
+    await page.getByRole("button", { name: "エリア", exact: true }).click();
+
+    // 新規プロジェクトを作成
+    await page.getByRole("button", { name: "新規" }).click();
+    const projectNameInput = page.getByPlaceholder("プロジェクト名");
+    await projectNameInput.fill("テストプロジェクト");
+    await page.getByRole("button", { name: "作成" }).click();
+
+    // エリアを追加
+    await page.getByRole("button", { name: "+ エリア追加" }).click();
+    const areaNameInput = page.getByPlaceholder("エリア名");
+    await areaNameInput.fill("テストエリア");
+    await page.getByRole("button", { name: "追加" }).click();
+  });
+
+  test("エリアが作成される", async ({ page }) => {
+    // Arrange - beforeEach でエリア作成済み
+    // Act - 状態確認
+
+    // Assert - エリア名が表示される
+    await expect(page.getByText("テストエリア")).toBeVisible();
+  });
+
+  test("編集ボタンをクリックして編集モードに入る", async ({ page }) => {
+    // Arrange - beforeEach でエリア作成済み
+    const editButton = page.getByTitle("名前を編集");
+
+    // Act - 編集ボタンをクリック
+    await editButton.click();
+
+    // Assert - 編集用入力欄が表示される
+    const editInput = page.locator('input[type="text"]').first();
+    await expect(editInput).toBeVisible();
+    await expect(editInput).toBeFocused();
+    await expect(editInput).toHaveValue("テストエリア");
+  });
+
+  // Note: ダブルクリックによる編集モード開始はUnitテストでカバー
+
+  test("編集してEnterで確定する", async ({ page }) => {
+    // Arrange - beforeEach でエリア作成済み
+    const editButton = page.getByTitle("名前を編集");
+
+    // Act - 編集モードに入り、名前を変更してEnterで確定
+    await editButton.click();
+    const editInput = page.locator('input[type="text"]').first();
+    await editInput.fill("新しいエリア名");
+    await editInput.press("Enter");
+
+    // Assert - 新しいエリア名が表示される
+    await expect(page.getByText("新しいエリア名")).toBeVisible();
+    await expect(page.getByText("テストエリア")).not.toBeVisible();
+  });
+
+  test("編集してEscapeでキャンセルする", async ({ page }) => {
+    // Arrange - beforeEach でエリア作成済み
+    const editButton = page.getByTitle("名前を編集");
+
+    // Act - 編集モードに入り、名前を変更してEscapeでキャンセル
+    await editButton.click();
+    const editInput = page.locator('input[type="text"]').first();
+    await editInput.fill("キャンセルされる名前");
+    await editInput.press("Escape");
+
+    // Assert - 元のエリア名が表示される
+    await expect(page.getByText("テストエリア")).toBeVisible();
+    await expect(page.getByText("キャンセルされる名前")).not.toBeVisible();
+  });
+
+  test("編集して外側クリックで確定する", async ({ page }) => {
+    // Arrange - beforeEach でエリア作成済み
+    const editButton = page.getByTitle("名前を編集");
+
+    // Act - 編集モードに入り、名前を変更して外側をクリック
+    await editButton.click();
+    const editInput = page.locator('input[type="text"]').first();
+    await editInput.fill("外側クリック確定");
+    await page.locator("aside").click({ position: { x: 10, y: 10 } });
+
+    // Assert - 新しいエリア名が表示される
+    await expect(page.getByText("外側クリック確定")).toBeVisible();
+  });
+
+  test("子エリア追加ボタンが表示される", async ({ page }) => {
+    // Arrange - beforeEach でエリア作成済み
+
+    // Act - エリアアイテムにホバー
+    const areaItem = page.getByText("テストエリア").locator("..");
+    await areaItem.hover();
+
+    // Assert - 子エリア追加ボタンが表示される
+    await expect(page.getByTitle("子エリア追加")).toBeVisible();
+  });
+
+  test("削除ボタンが表示される", async ({ page }) => {
+    // Arrange - beforeEach でエリア作成済み
+
+    // Act - エリアアイテムにホバー
+    const areaItem = page.getByText("テストエリア").locator("..");
+    await areaItem.hover();
+
+    // Assert - 削除ボタンが表示される
+    await expect(page.getByTitle("削除")).toBeVisible();
+  });
+});
+
 test.describe("マップ", () => {
   test.beforeEach(async ({ page }) => {
     // Arrange - 共通: ページ遷移
