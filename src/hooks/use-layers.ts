@@ -5,8 +5,8 @@ import {
   parseShapefileFromFiles,
   extractShapefiles,
 } from "@/lib/shapefile-parser";
-
-const STORAGE_KEY = "shapefile-viewer-layers";
+import { STORAGE_KEYS } from "@/lib/constants";
+import { layerLogger, shapefileLogger } from "@/lib/logger";
 
 interface UseLayersResult {
   layers: Layer[];
@@ -42,22 +42,7 @@ export function useLayers(): UseLayersResult {
   const [globalFilter, setGlobalFilterState] = useState<PropertyFilter | undefined>(undefined);
   const isInitialized = useRef(false);
 
-  // 起動時にlocalStorageから設定を復元 (GeoJSONは復元しない)
-  useEffect(() => {
-    if (isInitialized.current) return;
-    isInitialized.current = true;
-
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        console.log("[Layers] Found saved layer settings (GeoJSON needs re-upload)");
-      }
-    } catch (e) {
-      console.error("[Layers] Failed to load saved state:", e);
-    }
-  }, []);
-
-  // レイヤー変更時に設定を自動保存 (GeoJSONは除く)
+  // レイヤー変更時に設定を自動保存 (GeoJSONは除く、再アップロードが必要)
   useEffect(() => {
     if (!isInitialized.current) return;
 
@@ -69,9 +54,9 @@ export function useLayers(): UseLayersResult {
     }));
 
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState));
+      localStorage.setItem(STORAGE_KEYS.LAYERS, JSON.stringify(savedState));
     } catch (e) {
-      console.error("[Layers] Failed to save layer state:", e);
+      layerLogger.error("Failed to save layer state:", e);
     }
   }, [layers]);
 
@@ -89,7 +74,7 @@ export function useLayers(): UseLayersResult {
         const { shpFile, dbfFile, name } = extracted;
         const geojson = await parseShapefileFromFiles(shpFile, dbfFile);
 
-        console.log(`[Shapefile] Loaded: ${name} (${geojson.features.length} features)`);
+        shapefileLogger.log(`Loaded: ${name} (${geojson.features.length} features)`);
 
         // ファイル名ベースのレイヤーIDを生成
         const baseLayerId = generateLayerIdFromName(name);
@@ -114,7 +99,7 @@ export function useLayers(): UseLayersResult {
       } catch (e) {
         const message = e instanceof Error ? e.message : "Unknown error";
         setError(message);
-        console.error("Failed to load shapefile:", e);
+        shapefileLogger.error("Failed to load shapefile:", e);
       } finally {
         setIsLoading(false);
       }
@@ -163,9 +148,9 @@ export function useLayers(): UseLayersResult {
     setError(null);
     setGlobalFilterState(undefined);
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.LAYERS);
     } catch (e) {
-      console.error("[Layers] Failed to clear storage:", e);
+      layerLogger.error("Failed to clear storage:", e);
     }
   }, []);
 

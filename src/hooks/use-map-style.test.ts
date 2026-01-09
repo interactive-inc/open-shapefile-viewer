@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useMapStyle, MAP_STYLES, type MapStyleId } from "./use-map-style";
+import { STORAGE_KEYS } from "@/lib/constants";
 
 describe("useMapStyle", () => {
-  const STORAGE_KEY = "map-style";
+  const STORAGE_KEY = STORAGE_KEYS.MAP_STYLE;
 
   beforeEach(() => {
     localStorage.clear();

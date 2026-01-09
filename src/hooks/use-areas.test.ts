@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useAreas } from "./use-areas";
+// Test updated for getAreaColor removal
 
 describe("useAreas", () => {
   beforeEach(() => {
@@ -490,44 +491,6 @@ describe("useAreas", () => {
 
       // Assert
       expect(area).toBeUndefined();
-    });
-  });
-
-  describe("getAreaColor", () => {
-    it("フィーチャーIDからエリアの色を取得する", () => {
-      // Arrange
-      const { result } = renderHook(() => useAreas());
-      act(() => {
-        result.current.newProject("Test");
-      });
-      act(() => {
-        result.current.addArea("Area");
-      });
-      act(() => {
-        const areaId = result.current.areas[0].id;
-        result.current.addFeatureToArea(areaId, "feature-1");
-      });
-
-      // Act
-      const color = result.current.getAreaColor("feature-1");
-      const expectedColor = result.current.areas[0].color;
-
-      // Assert
-      expect(color).toBe(expectedColor);
-    });
-
-    it("割り当てられていないフィーチャーでnullを返す", () => {
-      // Arrange
-      const { result } = renderHook(() => useAreas());
-      act(() => {
-        result.current.newProject("Test");
-      });
-
-      // Act
-      const color = result.current.getAreaColor("feature-1");
-
-      // Assert
-      expect(color).toBeNull();
     });
   });
 

@@ -1,14 +1,23 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { STORAGE_KEYS } from "@/lib/constants";
 
-const STORAGE_KEY = "sidebar-width";
 const DEFAULT_WIDTH = 320;
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 600;
 
-export function useResizableSidebar() {
+/** useResizableSidebar の戻り値型 */
+export interface UseResizableSidebarResult {
+  width: number;
+  isResizing: boolean;
+  handleMouseDown: (e: React.MouseEvent) => void;
+  minWidth: number;
+  maxWidth: number;
+}
+
+export function useResizableSidebar(): UseResizableSidebarResult {
   const [width, setWidth] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEYS.SIDEBAR_WIDTH);
       if (saved) {
         const parsed = parseInt(saved, 10);
         if (!isNaN(parsed) && parsed >= MIN_WIDTH && parsed <= MAX_WIDTH) {
@@ -51,7 +60,7 @@ export function useResizableSidebar() {
       setIsResizing(false);
       // 保存
       try {
-        localStorage.setItem(STORAGE_KEY, String(width));
+        localStorage.setItem(STORAGE_KEYS.SIDEBAR_WIDTH, String(width));
       } catch {
         // ignore
       }

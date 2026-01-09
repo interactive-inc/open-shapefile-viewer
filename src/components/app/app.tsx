@@ -4,7 +4,7 @@ import { useLayers } from "@/hooks/use-layers";
 import { useAreas } from "@/hooks/use-areas";
 import { useMapStyle } from "@/hooks/use-map-style";
 import { useResizableSidebar } from "@/hooks/use-resizable-sidebar";
-import { MapView } from "@/components/map/map-container";
+import { MapView } from "@/components/map/map-view";
 import { GeoJSONLayer } from "@/components/map/geojson-layer";
 import { FeatureInfoPanel } from "@/components/map/feature-info-panel";
 import { LayerPanel } from "@/components/app/layer-panel";

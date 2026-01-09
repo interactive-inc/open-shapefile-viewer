@@ -5,11 +5,12 @@ import {
   createEmptyProject,
   generateAreaId,
   getNextAvailableColor,
+  parseAreaProject,
 } from "@/types/area";
 import type { Layer } from "@/types/layer";
 import { getFeatureNameFromLayers } from "@/types/layer";
-
-const PROJECT_STORAGE_KEY = "shapefile-viewer-project";
+import { STORAGE_KEYS } from "@/lib/constants";
+import { projectLogger } from "@/lib/logger";
 
 interface UseAreasResult {
   // Project state
@@ -45,7 +46,6 @@ interface UseAreasResult {
 
   // Utils
   getAreaById: (id: string) => Area | undefined;
-  getAreaColor: (featureId: string) => string | null;
   areaColorMap: Map<string, string>;
 }
 
@@ -79,14 +79,19 @@ export function useAreas(): UseAreasResult {
     isInitialized.current = true;
 
     try {
-      const saved = localStorage.getItem(PROJECT_STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEYS.PROJECT);
       if (saved) {
-        const loadedProject = JSON.parse(saved) as AreaProject;
-        setProject(loadedProject);
-        console.log(`[Project] Restored from localStorage: ${loadedProject.name}`);
+        const loadedProject = parseAreaProject(saved);
+        if (loadedProject) {
+          setProject(loadedProject);
+          projectLogger.log(`Restored from localStorage: ${loadedProject.name}`);
+        } else {
+          projectLogger.warn("Invalid project format in localStorage, clearing");
+          localStorage.removeItem(STORAGE_KEYS.PROJECT);
+        }
       }
     } catch (e) {
-      console.error("[Project] Failed to restore from localStorage:", e);
+      projectLogger.error("Failed to restore from localStorage:", e);
     }
   }, []);
 
@@ -96,15 +101,15 @@ export function useAreas(): UseAreasResult {
 
     if (project) {
       try {
-        localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(project));
+        localStorage.setItem(STORAGE_KEYS.PROJECT, JSON.stringify(project));
       } catch (e) {
-        console.error("[Project] Failed to save to localStorage:", e);
+        projectLogger.error("Failed to save to localStorage:", e);
       }
     } else {
       try {
-        localStorage.removeItem(PROJECT_STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEYS.PROJECT);
       } catch (e) {
-        console.error("[Project] Failed to clear localStorage:", e);
+        projectLogger.error("Failed to clear localStorage:", e);
       }
     }
   }, [project]);
@@ -131,21 +136,20 @@ export function useAreas(): UseAreasResult {
 
     try {
       const text = await file.text();
-      const loadedProject = JSON.parse(text) as AreaProject;
+      const loadedProject = parseAreaProject(text);
 
-      // バリデーション
-      if (!loadedProject.name || !loadedProject.areas) {
+      if (!loadedProject) {
         throw new Error("無効なプロジェクトファイルです");
       }
 
       setProject(loadedProject);
       setIsDirty(false);
       setSelectedAreaId(null);
-      console.log(`[Project] Loaded: ${loadedProject.name}`);
+      projectLogger.log(`Loaded: ${loadedProject.name}`);
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Unknown error";
+      const message = e instanceof Error ? e.message : "ファイルの読み込みに失敗しました";
       setError(message);
-      console.error("Failed to open project:", e);
+      projectLogger.error("Failed to open project:", e);
     } finally {
       setIsLoading(false);
     }
@@ -352,16 +356,6 @@ export function useAreas(): UseAreasResult {
     [project]
   );
 
-  // Get area color for a feature
-  const getAreaColor = useCallback(
-    (featureId: string): string | null => {
-      if (!project) return null;
-      const area = project.areas.find((a) => a.featureIds.includes(featureId));
-      return area?.color ?? null;
-    },
-    [project]
-  );
-
   // Area color map
   const areaColorMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -396,6 +390,5 @@ export function useAreas(): UseAreasResult {
     removeFeatureFromArea,
     addFeaturesToArea,
     getAreaById,
-    getAreaColor,
   };
 }

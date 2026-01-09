@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { STORAGE_KEYS } from "@/lib/constants";
 
 export type MapStyleId = "osm" | "positron" | "dark" | "osm-muted";
 
@@ -45,12 +46,18 @@ export const MAP_STYLES: Record<MapStyleId, MapStyleConfig> = {
   },
 };
 
-const STORAGE_KEY = "map-style";
+/** useMapStyle の戻り値型 */
+export interface UseMapStyleResult {
+  styleId: MapStyleId;
+  currentStyle: MapStyleConfig;
+  setStyle: (id: MapStyleId) => void;
+  allStyles: MapStyleConfig[];
+}
 
-export function useMapStyle() {
+export function useMapStyle(): UseMapStyleResult {
   const [styleId, setStyleId] = useState<MapStyleId>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEYS.MAP_STYLE);
       if (saved && saved in MAP_STYLES) {
         return saved as MapStyleId;
       }
@@ -63,7 +70,7 @@ export function useMapStyle() {
   const setStyle = useCallback((id: MapStyleId) => {
     setStyleId(id);
     try {
-      localStorage.setItem(STORAGE_KEY, id);
+      localStorage.setItem(STORAGE_KEYS.MAP_STYLE, id);
     } catch {
       // ignore
     }

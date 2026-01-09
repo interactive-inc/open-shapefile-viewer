@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useResizableSidebar } from "./use-resizable-sidebar";
+import { STORAGE_KEYS } from "@/lib/constants";
 
 describe("useResizableSidebar", () => {
-  const STORAGE_KEY = "sidebar-width";
+  const STORAGE_KEY = STORAGE_KEYS.SIDEBAR_WIDTH;
   const DEFAULT_WIDTH = 320;
   const MIN_WIDTH = 200;
   const MAX_WIDTH = 600;

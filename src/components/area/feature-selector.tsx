@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import type { Feature, Geometry, GeoJsonProperties } from "geojson";
-import type { Layer } from "@/types/layer";
+import { generateFeatureId, type Layer } from "@/types/layer";
 import {
   Card,
   CardContent,
@@ -20,13 +20,6 @@ interface FeatureSelectorProps {
   getFilteredFeatures: (
     layer: Layer
   ) => Feature<Geometry | null, GeoJsonProperties>[];
-}
-
-/**
- * フィーチャーIDを生成
- */
-function generateFeatureId(layerId: string, featureIndex: number): string {
-  return `${layerId}:${featureIndex}`;
 }
 
 export function FeatureSelector({
