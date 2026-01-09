@@ -183,4 +183,130 @@ describe("AreaTreeView", () => {
     // 子エリアが非表示になる
     expect(screen.queryByText("子エリア")).not.toBeInTheDocument();
   });
+
+  it("編集してblurで確定する", () => {
+    const onUpdateArea = vi.fn();
+    render(<AreaTreeView {...defaultProps} onUpdateArea={onUpdateArea} />);
+
+    // 編集モードに入る
+    fireEvent.doubleClick(screen.getByText("テストエリア1"));
+
+    const input = screen.getByDisplayValue("テストエリア1");
+    fireEvent.change(input, { target: { value: "blur確定名" } });
+    fireEvent.blur(input);
+
+    expect(onUpdateArea).toHaveBeenCalledWith("area-1", { name: "blur確定名" });
+  });
+
+  it("同じ名前で編集してもonUpdateAreaは呼ばれない", () => {
+    const onUpdateArea = vi.fn();
+    render(<AreaTreeView {...defaultProps} onUpdateArea={onUpdateArea} />);
+
+    // 編集モードに入る
+    fireEvent.doubleClick(screen.getByText("テストエリア1"));
+
+    const input = screen.getByDisplayValue("テストエリア1");
+    // 同じ名前のままEnter
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onUpdateArea).not.toHaveBeenCalled();
+  });
+
+  it("空白のみの名前ではonUpdateAreaは呼ばれない", () => {
+    const onUpdateArea = vi.fn();
+    render(<AreaTreeView {...defaultProps} onUpdateArea={onUpdateArea} />);
+
+    // 編集モードに入る
+    fireEvent.doubleClick(screen.getByText("テストエリア1"));
+
+    const input = screen.getByDisplayValue("テストエリア1");
+    fireEvent.change(input, { target: { value: "   " } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onUpdateArea).not.toHaveBeenCalled();
+  });
+
+  it("色インジケータが表示される", () => {
+    render(<AreaTreeView {...defaultProps} />);
+
+    // 各エリアの色が適用されたdivが存在する
+    const colorIndicators = document.querySelectorAll('[style*="background-color"]');
+    expect(colorIndicators.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("選択状態のエリアにはスタイルが適用される", () => {
+    render(
+      <AreaTreeView
+        {...defaultProps}
+        selectedAreaId="area-1"
+      />
+    );
+
+    // 選択されたエリア名はfont-semiboldが適用される
+    const selectedAreaName = screen.getByText("テストエリア1");
+    expect(selectedAreaName).toHaveClass("font-semibold");
+  });
+
+  it("編集ボタンにPencilアイコンが表示される", () => {
+    render(<AreaTreeView {...defaultProps} />);
+
+    const editButtons = screen.getAllByTitle("名前を編集");
+    // 各編集ボタンにsvgアイコンが含まれる
+    for (const button of editButtons) {
+      expect(button.querySelector("svg")).toBeInTheDocument();
+    }
+  });
+
+  it("子エリア追加ボタンにPlusアイコンが表示される", () => {
+    render(<AreaTreeView {...defaultProps} />);
+
+    const addButtons = screen.getAllByTitle("子エリア追加");
+    // 各追加ボタンにsvgアイコンが含まれる
+    for (const button of addButtons) {
+      expect(button.querySelector("svg")).toBeInTheDocument();
+    }
+  });
+
+  it("削除ボタンにXアイコンが表示される", () => {
+    render(<AreaTreeView {...defaultProps} />);
+
+    const removeButtons = screen.getAllByTitle("削除");
+    // 各削除ボタンにsvgアイコンが含まれる
+    for (const button of removeButtons) {
+      expect(button.querySelector("svg")).toBeInTheDocument();
+    }
+  });
+
+  it("子のないエリアには展開ボタンが表示されない", () => {
+    const singleArea: AreaWithChildren[] = [
+      {
+        id: "area-single",
+        name: "単独エリア",
+        parentId: null,
+        color: "#ff6b6b",
+        featureIds: [],
+        children: [],
+      },
+    ];
+
+    render(<AreaTreeView {...defaultProps} areas={singleArea} />);
+
+    // 展開/折畳みアイコンは空
+    expect(screen.queryByText("▶")).not.toBeInTheDocument();
+    expect(screen.queryByText("▼")).not.toBeInTheDocument();
+  });
+
+  it("深い階層の子エリアも展開できる", () => {
+    render(<AreaTreeView {...defaultProps} />);
+
+    // area-2を展開
+    const expandButton = screen.getByText("▶");
+    fireEvent.click(expandButton);
+
+    // 子エリアが表示される
+    expect(screen.getByText("子エリア")).toBeInTheDocument();
+
+    // 子エリアのフィーチャー数も表示される
+    expect(screen.getByText("1")).toBeInTheDocument();
+  });
 });
