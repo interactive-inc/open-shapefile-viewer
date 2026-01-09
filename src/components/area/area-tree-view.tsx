@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Pencil, Plus, X } from "lucide-react";
 import type { AreaWithChildren, Area } from "@/types/area";
 import { AREA_COLORS } from "@/types/area";
 
@@ -76,7 +77,7 @@ function AreaTreeItem({
   return (
     <div>
       <div
-        className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer hover:bg-accent ${
+        className={`group flex items-center gap-1 px-2 py-1 rounded cursor-pointer hover:bg-accent ${
           isSelected ? "bg-accent" : ""
         }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
@@ -154,25 +155,37 @@ function AreaTreeItem({
         <div className="flex gap-1 opacity-0 group-hover:opacity-100">
           <button
             type="button"
-            className="text-xs px-1 hover:bg-background rounded"
+            className="p-0.5 hover:bg-background rounded"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEditing(true);
+              setEditName(area.name);
+            }}
+            title="名前を編集"
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+          <button
+            type="button"
+            className="p-0.5 hover:bg-background rounded"
             onClick={(e) => {
               e.stopPropagation();
               onAddChild(area.id);
             }}
             title="子エリア追加"
           >
-            +
+            <Plus className="w-3 h-3" />
           </button>
           <button
             type="button"
-            className="text-xs px-1 text-destructive hover:bg-background rounded"
+            className="p-0.5 text-destructive hover:bg-background rounded"
             onClick={(e) => {
               e.stopPropagation();
               onRemoveArea(area.id);
             }}
             title="削除"
           >
-            ✕
+            <X className="w-3 h-3" />
           </button>
         </div>
       </div>
@@ -231,7 +244,7 @@ export function AreaTreeView({
   }
 
   return (
-    <div className="space-y-0.5 group">
+    <div className="space-y-0.5">
       {areas.map((area) => (
         <AreaTreeItem
           key={`${area.id}-${selectedAreaId === area.id}`}
